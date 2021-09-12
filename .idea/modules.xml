@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Algebra_Final_Thesis.iml" filepath="$PROJECT_DIR$/.idea/Algebra_Final_Thesis.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/pathfinder.iml" filepath="$PROJECT_DIR$/.idea/modules/pathfinder.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/pathfinder.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/pathfinder.app.iml" />
     </modules>
   </component>
 </project>

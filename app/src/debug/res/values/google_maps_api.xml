@@ -1,0 +1,24 @@
+<resources>
+    <!--
+    TODO: Before you run your application, you need a Google Maps API key.
+
+    To get one, follow this link, follow the directions and press "Create" at the end:
+
+    https://console.developers.google.com/flows/enableapi?apiid=maps_android_backend&keyType=CLIENT_SIDE_ANDROID&r=9F:F8:36:C2:F6:99:1E:16:31:BC:2B:43:5D:F8:36:A6:E7:7E:BA:CC%3Bfm.pathfinder.fragments
+
+    You can also add your credentials to an existing key, using these values:
+
+    Package name:
+    fm.pathfinder.fragments
+
+    SHA-1 certificate fingerprint:
+    9F:F8:36:C2:F6:99:1E:16:31:BC:2B:43:5D:F8:36:A6:E7:7E:BA:CC
+
+    Alternatively, follow the directions here:
+    https://developers.google.com/maps/documentation/android/start#get-key
+
+    Once you have your key (it starts with "AIza"), replace the "google_maps_key"
+    string in this file.
+    -->
+    <string name="google_maps_key" templateMergeStrategy="preserve" translatable="false">YOUR_KEY_HERE</string>
+</resources>
