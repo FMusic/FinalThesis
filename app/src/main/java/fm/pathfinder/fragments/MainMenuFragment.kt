@@ -25,11 +25,10 @@ class MainMenuFragment : Fragment(R.layout.fragment_main_menu) {
     override fun onAttach(context: Context) {
         super.onAttach(context)
 
-        val btnStartScan = view?.findViewById<Button>(R.id.btnStartScan)
-        val btnShowData = view?.findViewById<Button>(R.id.btnOpenData)
+        view?.findViewById<Button>(R.id.btnStartScan)
+            ?.setOnClickListener { fragmentChanger.changeFragment(1) }
+        view?.findViewById<Button>(R.id.btnOpenData)
+            ?.setOnClickListener { fragmentChanger.changeFragment(2) }
 
-        btnStartScan?.setOnClickListener{
-            fragmentChanger.changeFragment(1)
-        }
     }
 }

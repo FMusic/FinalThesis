@@ -20,11 +20,12 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener {
     }
 
     override fun changeFragment(id: Int) {
-        if (id==1){
-            supportFragmentManager.beginTransaction().apply {
-                replace(R.id.fragment_container, MapsFragment())
-                commit()
+        supportFragmentManager.beginTransaction().apply {
+            when (id) {
+                1 -> { replace(R.id.fragment_container, MapsFragment()) }
+                2 -> { replace(R.id.fragment_container, MapsFragment()) }
             }
+            commit()
         }
     }
 }
