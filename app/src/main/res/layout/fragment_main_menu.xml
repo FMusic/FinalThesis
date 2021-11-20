@@ -14,7 +14,7 @@
         android:layout_marginHorizontal="@dimen/margin_horizontal"
         android:layout_marginBottom="@dimen/margin_buttons"
         android:id="@+id/btnStartScan"
-        android:text="Start scan" />
+        android:text="Map" />
 
     <Button
         android:layout_width="match_parent"
@@ -23,6 +23,6 @@
         android:layout_marginTop="@dimen/margin_buttons"
         android:paddingVertical="@dimen/padding_vertical"
         android:id="@+id/btnOpenData"
-        android:text="Data" />
+        android:text="Nothing" />
 
 </LinearLayout>
