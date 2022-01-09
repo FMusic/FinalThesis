@@ -13,7 +13,7 @@
         android:paddingVertical="@dimen/padding_vertical"
         android:layout_marginHorizontal="@dimen/margin_horizontal"
         android:layout_marginBottom="@dimen/margin_buttons"
-        android:id="@+id/btnStartScan"
+        android:id="@+id/btnOpenMap"
         android:text="Map" />
 
     <Button

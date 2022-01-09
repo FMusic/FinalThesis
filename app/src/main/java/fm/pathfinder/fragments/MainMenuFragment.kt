@@ -29,7 +29,7 @@ class MainMenuFragment : Fragment(R.layout.fragment_main_menu) {
         savedInstanceState: Bundle?
     ): View? {
         val v = inflater.inflate(R.layout.fragment_main_menu, container, false)
-        val btnStartScan = v.findViewById<Button>(R.id.btnStartScan)
+        val btnStartScan = v.findViewById<Button>(R.id.btnOpenMap)
         val btnOpenData = v.findViewById<Button>(R.id.btnOpenData)
 
         btnStartScan.setOnClickListener { fragmentChanger.changeFragment(1) }

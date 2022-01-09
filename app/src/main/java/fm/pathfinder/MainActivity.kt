@@ -2,6 +2,8 @@ package fm.pathfinder
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.Toast
+import androidx.fragment.app.FragmentTransaction
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionDeniedResponse
@@ -13,7 +15,9 @@ import fm.pathfinder.fragments.MainMenuFragment
 import fm.pathfinder.fragments.MapsFragment
 
 class MainActivity : AppCompatActivity(), FragmentChangeListener, PermissionListener {
+    private var backPressed: Boolean = false
     private var permissionsGranted = false
+    private var activeFragment = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +34,7 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener, PermissionList
      * 2 - todo: data loader fragment, load list of scanned buildings from api and show them, on click show
      */
     override fun changeFragment(id: Int) {
+        activeFragment = id
         supportFragmentManager.beginTransaction().apply {
             when (id) {
                 0 -> {
@@ -45,8 +50,10 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener, PermissionList
                     replace(R.id.fragment_container, MapsFragment.newInstance())
                 }
             }
+            setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
             commit()
         }
+        backPressed = false
     }
 
     private fun askForPermissions() {
@@ -66,6 +73,20 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener, PermissionList
 
     override fun onPermissionRationaleShouldBeShown(p0: PermissionRequest?, p1: PermissionToken?) {
         TODO("Not yet implemented")
+    }
+
+    override fun onBackPressed() {
+        if (activeFragment == 0) {
+            if (backPressed)
+                finishAffinity()
+            else {
+                backPressed = true
+                Toast.makeText(this, "Press back again for exit", Toast.LENGTH_SHORT).show()
+            }
+        }
+        if (activeFragment > 0) {
+            changeFragment(0)
+        }
     }
 }
 
