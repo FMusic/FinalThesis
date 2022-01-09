@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -25,6 +26,7 @@ class MapsFragment : Fragment() {
     private lateinit var mapFragment: SupportMapFragment
     private lateinit var currentLocation: LatLng
     private lateinit var mapPresenter: MapPresenter
+    private lateinit var tvLogger: TextView
 
 
     private val callback = OnMapReadyCallback { googleMap ->
@@ -58,6 +60,7 @@ class MapsFragment : Fragment() {
         val btnStartScan = view.findViewById<Button>(R.id.btnStartScan)
         val btnStopScan = view.findViewById<Button>(R.id.btnStopScan)
         val btnNewRoom = view.findViewById<Button>(R.id.btnNewRoom)
+        tvLogger = view.findViewById(R.id.tvLog)
 
         btnStartScan.setOnClickListener {
             mapPresenter.startScan()
@@ -101,6 +104,7 @@ class MapsFragment : Fragment() {
 
     fun changeLocation(location: LatLng) {
         currentLocation = location
+        tvLogger.text = "GPS: Lat: ${location.latitude} Long: ${location.longitude}"
         mapFragment.getMapAsync(callback)
     }
 }

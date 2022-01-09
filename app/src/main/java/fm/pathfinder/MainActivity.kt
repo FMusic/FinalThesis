@@ -63,7 +63,8 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
         val dexter = Dexter.withContext(this)
             .withPermissions(
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
+                android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                android.Manifest.permission.ACCESS_WIFI_STATE
             )
             .withListener(this)
         dexter.check()
