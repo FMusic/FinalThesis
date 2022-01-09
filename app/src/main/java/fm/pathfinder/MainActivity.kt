@@ -5,16 +5,19 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.fragment.app.FragmentTransaction
 import com.karumi.dexter.Dexter
+import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionDeniedResponse
 import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
+import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import com.karumi.dexter.listener.single.PermissionListener
 import fm.pathfinder.fragments.FragmentChangeListener
 import fm.pathfinder.fragments.MainMenuFragment
 import fm.pathfinder.fragments.MapsFragment
 
-class MainActivity : AppCompatActivity(), FragmentChangeListener, PermissionListener {
+class MainActivity : AppCompatActivity(), FragmentChangeListener,
+    MultiplePermissionsListener {
     private var backPressed: Boolean = false
     private var permissionsGranted = false
     private var activeFragment = -1
@@ -58,21 +61,12 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener, PermissionList
 
     private fun askForPermissions() {
         val dexter = Dexter.withContext(this)
-            .withPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            .withPermissions(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            )
             .withListener(this)
         dexter.check()
-    }
-
-    override fun onPermissionGranted(p0: PermissionGrantedResponse?) {
-        permissionsGranted = true
-    }
-
-    override fun onPermissionDenied(p0: PermissionDeniedResponse?) {
-        permissionsGranted = false
-    }
-
-    override fun onPermissionRationaleShouldBeShown(p0: PermissionRequest?, p1: PermissionToken?) {
-        TODO("Not yet implemented")
     }
 
     override fun onBackPressed() {
@@ -87,6 +81,17 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener, PermissionList
         if (activeFragment > 0) {
             changeFragment(0)
         }
+    }
+
+    override fun onPermissionsChecked(p0: MultiplePermissionsReport?) {
+        permissionsGranted = true
+    }
+
+    override fun onPermissionRationaleShouldBeShown(
+        p0: MutableList<PermissionRequest>?,
+        p1: PermissionToken?
+    ) {
+        TODO("Not yet implemented")
     }
 }
 

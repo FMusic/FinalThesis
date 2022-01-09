@@ -23,7 +23,12 @@ class MapPresenter(private val mapsFragment: MapsFragment) : LocationListener {
         try {
             val locationManager = mapsFragment.activity?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, Constants.SLEEP_TIME_MS, Constants.MIN_DISTANCE_FEET, this)
-//            val wifiManager = mapsFragment.activity?.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val wifiManager = mapsFragment.activity?.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            if (!wifiManager.isWifiEnabled){
+                Toast.makeText(mapsFragment.context, "Please turn wifi on", Toast.LENGTH_SHORT).show()
+            } else{
+                wifiManager.startScan()
+            }
 
         } catch (e: SecurityException) {
             e.printStackTrace()
