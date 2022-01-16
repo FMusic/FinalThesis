@@ -43,7 +43,7 @@
     <TextView
         android:id="@+id/tvLog"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="150dp"
         android:textColor="@color/black"
         android:background="@color/white"
         android:padding="1dp"

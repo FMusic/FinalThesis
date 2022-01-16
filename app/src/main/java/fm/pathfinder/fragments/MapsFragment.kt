@@ -17,6 +17,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 
 import fm.pathfinder.R
+import fm.pathfinder.model.GpsSpot
 import fm.pathfinder.presenters.MapPresenter
 
 class MapsFragment : Fragment() {
@@ -106,5 +107,9 @@ class MapsFragment : Fragment() {
         currentLocation = location
         tvLogger.text = "GPS: Lat: ${location.latitude} Long: ${location.longitude}"
         mapFragment.getMapAsync(callback)
+    }
+
+    fun logWifi(){
+        tvLogger.text = "WIFI: New Wifis Available"
     }
 }

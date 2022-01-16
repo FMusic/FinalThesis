@@ -21,3 +21,12 @@ fun GpsSpot.toLatLng(): LatLng {
 fun Location.toLatLng(): LatLng{
     return LatLng(latitude, longitude)
 }
+
+data class WifiResult(
+    val bssid: String,
+    val ssid: String,
+    val capabilities: String,
+    val frequency: Int,
+    val level: Int,
+    val timestamp: Long
+)
