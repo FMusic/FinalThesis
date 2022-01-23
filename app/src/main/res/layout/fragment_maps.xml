@@ -55,15 +55,15 @@
                 android:textColor="@color/white"
                 android:visibility="invisible" />
 
-    <TextView
-        android:id="@+id/tvLog"
-        android:layout_width="match_parent"
-        android:layout_height="150dp"
-        android:textColor="@color/black"
-        android:background="@color/white"
-        android:padding="1dp"
-        android:visibility="visible"
-        android:layout_gravity="center|bottom"
-        />
+            <Button
+                android:id="@+id/btnExitRoom"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/exit_room"
+                android:textColor="@color/white"
+                android:visibility="invisible" />
+        </LinearLayout>
+
+    </LinearLayout>
 
 </fragment>

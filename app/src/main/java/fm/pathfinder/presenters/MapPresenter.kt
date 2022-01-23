@@ -115,11 +115,16 @@ class MapPresenter(private val mapsFragment: MapsFragment) : LocationListener {
 
     fun stopScan() {
         scanningOn = false
+        val data = locationScanner.extractData()
 //        timer.cancel()
     }
 
     fun newRoom(label: String) {
         Toast.makeText(mapsFragment.context, "New Room Add $label", Toast.LENGTH_SHORT).show()
+    }
+
+    fun exitRoom() {
+        TODO("Not yet implemented")
     }
 
     companion object {
