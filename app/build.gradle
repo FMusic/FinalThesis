@@ -31,6 +31,9 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 dependencies {
@@ -54,6 +57,7 @@ dependencies {
 
 //    Library for permissions
     implementation 'com.karumi:dexter:6.2.3'
+    implementation 'androidx.recyclerview:recyclerview:1.2.0'
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'

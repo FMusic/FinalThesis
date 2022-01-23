@@ -28,6 +28,7 @@ class MapsFragment : Fragment() {
     private lateinit var currentLocation: LatLng
     private lateinit var mapPresenter: MapPresenter
     private lateinit var tvLogger: TextView
+    private val textForLog = StringBuilder()
 
 
     private val callback = OnMapReadyCallback { googleMap ->
@@ -61,6 +62,7 @@ class MapsFragment : Fragment() {
         val btnStartScan = view.findViewById<Button>(R.id.btnStartScan)
         val btnStopScan = view.findViewById<Button>(R.id.btnStopScan)
         val btnNewRoom = view.findViewById<Button>(R.id.btnNewRoom)
+        val btnExitRoom = view.findViewById<Button>(R.id.btnExitRoom)
         tvLogger = view.findViewById(R.id.tvLog)
 
         btnStartScan.setOnClickListener {
@@ -79,6 +81,14 @@ class MapsFragment : Fragment() {
 
         btnNewRoom.setOnClickListener {
             alerterNewRoom()
+            btnExitRoom.visibility = View.VISIBLE
+            btnNewRoom.visibility = View.INVISIBLE
+        }
+
+        btnExitRoom.setOnClickListener{
+            btnNewRoom.visibility = View.VISIBLE
+            btnExitRoom.visibility = View.INVISIBLE
+            mapPresenter.exitRoom()
         }
     }
 
@@ -105,11 +115,20 @@ class MapsFragment : Fragment() {
 
     fun changeLocation(location: LatLng) {
         currentLocation = location
-        tvLogger.text = "GPS: Lat: ${location.latitude} Long: ${location.longitude}"
+        val locLat = location.latitude.toString()
+        val locLong = location.longitude.toString()
+        textForLog.append(
+            "GPS: Lat: ${locLat.substring(0, locLat.length.coerceAtMost(10))} " +
+                    "Long: ${locLong.substring(0, locLong.length.coerceAtMost(10))}\n"
+        )
+        if (textForLog.lines().size > 8) {
+            textForLog.delete(0, textForLog.indexOf("\n") + 1)
+        }
+        tvLogger.text = textForLog.toString()
         mapFragment.getMapAsync(callback)
     }
 
-    fun logWifi(){
+    fun logWifi() {
         tvLogger.text = "WIFI: New Wifis Available"
     }
 }

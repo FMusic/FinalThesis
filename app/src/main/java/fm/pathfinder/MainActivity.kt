@@ -1,17 +1,15 @@
 package fm.pathfinder
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentTransaction
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
-import com.karumi.dexter.listener.PermissionDeniedResponse
-import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
-import com.karumi.dexter.listener.single.PermissionListener
+import fm.pathfinder.fragments.DataStorageFragment
 import fm.pathfinder.fragments.FragmentChangeListener
 import fm.pathfinder.fragments.MainMenuFragment
 import fm.pathfinder.fragments.MapsFragment
@@ -50,7 +48,7 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
                     replace(R.id.fragment_container, MapsFragment.newInstance())
                 }
                 2 -> {
-                    replace(R.id.fragment_container, MapsFragment.newInstance())
+                    replace(R.id.fragment_container, DataStorageFragment.newInstance())
                 }
             }
             setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)

@@ -6,4 +6,5 @@
     <string name="stop">stop</string>
     <string name="new_room">new room</string>
     <string name="eg_r01">eg. R01</string>
+    <string name="exit_room">exit room</string>
 </resources>

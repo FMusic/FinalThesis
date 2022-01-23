@@ -23,6 +23,6 @@
         android:layout_marginTop="@dimen/margin_buttons"
         android:paddingVertical="@dimen/padding_vertical"
         android:id="@+id/btnOpenData"
-        android:text="Nothing" />
+        android:text="Scanned Buildings" />
 
 </LinearLayout>
