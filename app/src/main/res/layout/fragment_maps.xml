@@ -12,28 +12,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:orientation="horizontal">
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/tvLog"
-            android:layout_width="0dp"
-            android:layout_weight="3"
-            android:layout_height="150dp"
-            android:background="@color/white"
-            android:padding="1dp"
-            android:textColor="@color/black"
-            android:visibility="visible" />
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="horizontal">
 
             <Button
                 android:id="@+id/btnStartScan"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/start_scan_btn_text"
                 android:textColor="@color/white"
@@ -41,7 +32,7 @@
 
             <Button
                 android:id="@+id/btnStopScan"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/stop"
                 android:textColor="@color/white"
@@ -49,7 +40,7 @@
 
             <Button
                 android:id="@+id/btnNewRoom"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/new_room"
                 android:textColor="@color/white"
@@ -57,12 +48,22 @@
 
             <Button
                 android:id="@+id/btnExitRoom"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/exit_room"
                 android:textColor="@color/white"
                 android:visibility="invisible" />
         </LinearLayout>
+
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_weight="3"
+            android:layout_height="100dp"
+            android:background="@color/white"
+            android:textColor="@color/black"
+            android:visibility="visible" />
 
     </LinearLayout>
 
