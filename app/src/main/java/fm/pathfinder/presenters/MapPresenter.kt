@@ -65,10 +65,10 @@ class MapPresenter(private val mapsFragment: MapsFragment) : LocationListener {
             mapsFragment.activity?.applicationContext?.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val intentFilter = IntentFilter()
         intentFilter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
-        if(mapsFragment.context != null){
+        if (mapsFragment.context != null) {
             mapsFragment.requireContext().registerReceiver(wifiScanReceiver, intentFilter)
-        }else{
-            Log.e(TAG,"NO CONTEXT IN WIFI!")
+        } else {
+            Log.e(TAG, "NO CONTEXT IN WIFI!")
             mapsFragment.requireContext().registerReceiver(wifiScanReceiver, intentFilter)
         }
 
@@ -97,9 +97,9 @@ class MapPresenter(private val mapsFragment: MapsFragment) : LocationListener {
 
     private val wifiScanReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val succ = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED , false)
+            val succ = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
             if (succ) {
-                val scanResults = wifiManager.scanResults.map{x->
+                val scanResults = wifiManager.scanResults.map { x ->
                     WifiResult(x.BSSID, x.SSID, x.capabilities, x.frequency, x.level, x.timestamp)
                 }.toList()
                 mapsFragment.logWifi()
@@ -116,15 +116,17 @@ class MapPresenter(private val mapsFragment: MapsFragment) : LocationListener {
     fun stopScan() {
         scanningOn = false
         val data = locationScanner.extractData()
-//        timer.cancel()
+        TODO("data is available here, save it somewhere")
     }
 
-    fun newRoom(label: String) {
-        Toast.makeText(mapsFragment.context, "New Room Add $label", Toast.LENGTH_SHORT).show()
+    fun newRoom(roomName: String) {
+        locationScanner.enterNewRoom(roomName)
+        Toast.makeText(mapsFragment.context, "New Room enter $roomName", Toast.LENGTH_SHORT).show()
     }
 
     fun exitRoom() {
-        TODO("Not yet implemented")
+        val roomName = locationScanner.exitRoom()
+        Toast.makeText(mapsFragment.context, "Room exited $roomName", Toast.LENGTH_SHORT).show()
     }
 
     companion object {
