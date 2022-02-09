@@ -11,15 +11,20 @@ import android.location.LocationManager
 import android.net.wifi.WifiManager
 import android.util.Log
 import android.widget.Toast
-import fm.pathfinder.fragments.MapsFragment
+import com.google.gson.Gson
 import fm.pathfinder.Constants
+import fm.pathfinder.MainActivity
+import fm.pathfinder.fragments.MapsFragment
 import fm.pathfinder.model.WifiResult
 import fm.pathfinder.model.toLatLng
 import fm.pathfinder.processor.LocationScanner
 import java.util.*
 
 @SuppressLint("MissingPermission")
-class MapPresenter(private val mapsFragment: MapsFragment) : LocationListener {
+class MapPresenter(
+    private val mapsFragment: MapsFragment,
+    private val mainActivity: MainActivity
+) : LocationListener {
     private val locationScanner = LocationScanner()
     private var scanningOn = false
     private lateinit var wifiManager: WifiManager
@@ -29,7 +34,7 @@ class MapPresenter(private val mapsFragment: MapsFragment) : LocationListener {
     init {
         try {
             initLocationRequests()
-            initWifiRequests()
+//            initWifiRequests()
         } catch (e: SecurityException) {
             Log.e(TAG, "SECURITY, NO WIFI WILL BE AVAILABLE")
             e.printStackTrace()
@@ -115,8 +120,10 @@ class MapPresenter(private val mapsFragment: MapsFragment) : LocationListener {
 
     fun stopScan() {
         scanningOn = false
-        val data = locationScanner.extractData()
-        TODO("data is available here, save it somewhere")
+        val buildingData = locationScanner.extractData()
+        val jsonBuilding = Gson().toJson(buildingData)
+        mainActivity.createFile(jsonBuilding)
+        Toast.makeText(mapsFragment.context, "Saving building data", Toast.LENGTH_SHORT).show()
     }
 
     fun newRoom(roomName: String) {

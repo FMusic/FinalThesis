@@ -15,9 +15,9 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import fm.pathfinder.MainActivity
 
 import fm.pathfinder.R
-import fm.pathfinder.model.GpsSpot
 import fm.pathfinder.presenters.MapPresenter
 
 class MapsFragment : Fragment() {
@@ -30,6 +30,7 @@ class MapsFragment : Fragment() {
     private lateinit var tvLogger: TextView
     private val textForLog = StringBuilder()
 
+    private lateinit var mainActivity: MainActivity
 
     private val callback = OnMapReadyCallback { googleMap ->
         if (this::currentLocation.isInitialized) {
@@ -40,9 +41,9 @@ class MapsFragment : Fragment() {
 
     companion object {
         @JvmStatic
-        fun newInstance() =
+        fun newInstance(ma: MainActivity) =
             MapsFragment().apply {
-
+                mainActivity = ma
             }
     }
 
@@ -57,7 +58,7 @@ class MapsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         mapFragment = (childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?)!!
-        mapPresenter = MapPresenter(this)
+        mapPresenter = MapPresenter(this, mainActivity)
 
         val btnStartScan = view.findViewById<Button>(R.id.btnStartScan)
         val btnStopScan = view.findViewById<Button>(R.id.btnStopScan)

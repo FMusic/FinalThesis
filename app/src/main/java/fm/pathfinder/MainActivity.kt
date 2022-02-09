@@ -1,7 +1,12 @@
 package fm.pathfinder
 
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.DocumentsContract
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentTransaction
 import com.karumi.dexter.Dexter
@@ -13,12 +18,15 @@ import fm.pathfinder.fragments.DataStorageFragment
 import fm.pathfinder.fragments.FragmentChangeListener
 import fm.pathfinder.fragments.MainMenuFragment
 import fm.pathfinder.fragments.MapsFragment
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity(), FragmentChangeListener,
     MultiplePermissionsListener {
     private var backPressed: Boolean = false
     private var permissionsGranted = false
     private var activeFragment = -1
+
+    private var stringToWrite: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +53,7 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
                     )
                 }
                 1 -> {
-                    replace(R.id.fragment_container, MapsFragment.newInstance())
+                    replace(R.id.fragment_container, MapsFragment.newInstance(this@MainActivity))
                 }
                 2 -> {
                     replace(R.id.fragment_container, DataStorageFragment.newInstance())
@@ -63,7 +71,8 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
                 android.Manifest.permission.ACCESS_COARSE_LOCATION,
                 android.Manifest.permission.ACCESS_WIFI_STATE,
-                android.Manifest.permission.CHANGE_WIFI_STATE
+                android.Manifest.permission.CHANGE_WIFI_STATE,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
             )
             .withListener(this)
         dexter.check()
@@ -75,7 +84,11 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
                 finishAffinity()
             else {
                 backPressed = true
-                Toast.makeText(this, "Press back again for exit", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Press back again for exit",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
         if (activeFragment > 0) {
@@ -92,6 +105,49 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
         p1: PermissionToken?
     ) {
         TODO("Not yet implemented")
+    }
+
+
+    /**
+     * opens an activity for saving file.
+     * @param inputString required, string that will be written into file
+     * @param pickerInitialUri optional, specify a URI for dir that should be
+     * opened in the system file picker before app creates the document
+     */
+    fun createFile(inputString: String, pickerInitialUri: Uri? = null) {
+        stringToWrite = inputString
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, "pathfinder.json")
+            pickerInitialUri?.let {
+                putExtra(
+                    DocumentsContract.EXTRA_INITIAL_URI,
+                    pickerInitialUri
+                )
+            }
+        }
+        startActivityForResult(intent, Constants.CREATE_FILE)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == Constants.CREATE_FILE && resultCode == Activity.RESULT_OK) {
+            data?.data?.also { uri ->
+                contentResolver.openFileDescriptor(uri, "w")?.use { it ->
+                    FileOutputStream(it.fileDescriptor).use { it2 ->
+                        if (stringToWrite != null) {
+                            it2.write(stringToWrite!!.toByteArray())
+                        } else {
+                            Toast.makeText(this, "String to write is empty", Toast.LENGTH_LONG)
+                                .show()
+                        }
+                        stringToWrite = null
+                    }
+                }
+            }
+        }
     }
 }
 
