@@ -3,10 +3,11 @@ package fm.pathfinder
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.DocumentsContract
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentTransaction
 import com.karumi.dexter.Dexter
@@ -33,8 +34,12 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
         setContentView(R.layout.activity_main)
         changeFragment(0)
         if (!permissionsGranted)
-            askForPermissions()
+            if (Build.VERSION.SDK_INT >= 33)
+                askForPermissions()
+            else
+                askForOlderPermissions()
     }
+
 
     /**
      * @param id - number of fragment to put in fragment_container
@@ -65,6 +70,21 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
         backPressed = false
     }
 
+    private fun askForOlderPermissions() {
+        val dexter = Dexter.withContext(this)
+            .withPermissions(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                android.Manifest.permission.ACCESS_WIFI_STATE,
+                android.Manifest.permission.CHANGE_WIFI_STATE,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            )
+            .withListener(this)
+        dexter.check()
+
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun askForPermissions() {
         val dexter = Dexter.withContext(this)
             .withPermissions(
@@ -72,12 +92,14 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
                 android.Manifest.permission.ACCESS_COARSE_LOCATION,
                 android.Manifest.permission.ACCESS_WIFI_STATE,
                 android.Manifest.permission.CHANGE_WIFI_STATE,
-                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                android.Manifest.permission.NEARBY_WIFI_DEVICES,
             )
             .withListener(this)
         dexter.check()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (activeFragment == 0) {
             if (backPressed)
@@ -130,6 +152,7 @@ class MainActivity : AppCompatActivity(), FragmentChangeListener,
         startActivityForResult(intent, Constants.CREATE_FILE)
     }
 
+    @Deprecated("todo in future")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 

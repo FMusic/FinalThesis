@@ -1,6 +1,7 @@
 package fm.pathfinder.fragments
 
 import android.app.AlertDialog
+import android.net.wifi.ScanResult
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -9,14 +10,12 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import fm.pathfinder.MainActivity
-
 import fm.pathfinder.R
 import fm.pathfinder.presenters.MapPresenter
 
@@ -86,7 +85,7 @@ class MapsFragment : Fragment() {
             btnNewRoom.visibility = View.INVISIBLE
         }
 
-        btnExitRoom.setOnClickListener{
+        btnExitRoom.setOnClickListener {
             btnNewRoom.visibility = View.VISIBLE
             btnExitRoom.visibility = View.INVISIBLE
             mapPresenter.exitRoom()
@@ -116,20 +115,25 @@ class MapsFragment : Fragment() {
 
     fun changeLocation(location: LatLng) {
         currentLocation = location
-        val locLat = location.latitude.toString()
-        val locLong = location.longitude.toString()
-        textForLog.append(
-            "GPS: Lat: ${locLat.substring(0, locLat.length.coerceAtMost(10))} " +
-                    "Long: ${locLong.substring(0, locLong.length.coerceAtMost(10))}\n"
-        )
-        if (textForLog.lines().size > 8) {
-            textForLog.delete(0, textForLog.indexOf("\n") + 1)
-        }
-        tvLogger.text = textForLog.toString()
+        addTextToTvLog("GPS: Lat: ${coerceLocLat(location.latitude)} " +
+                "Long: ${coerceLocLat(location.longitude)}\n")
         mapFragment.getMapAsync(callback)
     }
 
-    fun logWifi() {
-        tvLogger.text = "WIFI: New Wifis Available"
+    fun logWifi(x: ScanResult) {
+        addTextToTvLog("WIFI: ${x.BSSID} ${x.level}\n")
     }
+
+    private fun addTextToTvLog(txt: String) {
+        textForLog.append(txt)
+        if (textForLog.lines().size > 8) {
+            textForLog.delete(0, textForLog.indexOf("\n") + 1)
+            textForLog.capacity()
+        }
+        tvLogger.text = textForLog.toString()
+
+    }
+
+    private fun coerceLocLat(double: Double) =
+        double.toString().substring(0, double.toString().length.coerceAtMost(10))
 }
