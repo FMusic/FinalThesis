@@ -1,8 +1,10 @@
-package fm.pathfinder.fragments
+package fm.pathfinder.collecting
 
 import android.app.AlertDialog
 import android.net.wifi.ScanResult
+import android.net.wifi.rtt.RangingResult
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,9 +19,9 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import fm.pathfinder.MainActivity
 import fm.pathfinder.R
-import fm.pathfinder.presenters.MapPresenter
 
 class MapsFragment : Fragment() {
+
     /**
      * tutorial used: https://www.thecrazyprogrammer.com/2017/01/how-to-get-current-location-in-android.html
      */
@@ -57,38 +59,41 @@ class MapsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         mapFragment = (childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?)!!
-        mapPresenter = MapPresenter(this, mainActivity)
+        mainActivity?.let {
+            mapPresenter = MapPresenter(this, mainActivity)
 
-        val btnStartScan = view.findViewById<Button>(R.id.btnStartScan)
-        val btnStopScan = view.findViewById<Button>(R.id.btnStopScan)
-        val btnNewRoom = view.findViewById<Button>(R.id.btnNewRoom)
-        val btnExitRoom = view.findViewById<Button>(R.id.btnExitRoom)
-        tvLogger = view.findViewById(R.id.tvLog)
 
-        btnStartScan.setOnClickListener {
-            mapPresenter.startScan()
-            btnStartScan.visibility = View.INVISIBLE
-            btnStopScan.visibility = View.VISIBLE
-            btnNewRoom.visibility = View.VISIBLE
-        }
+            val btnStartScan = view.findViewById<Button>(R.id.btnStartScan)
+            val btnStopScan = view.findViewById<Button>(R.id.btnStopScan)
+            val btnNewRoom = view.findViewById<Button>(R.id.btnNewRoom)
+            val btnExitRoom = view.findViewById<Button>(R.id.btnExitRoom)
+            tvLogger = view.findViewById(R.id.tvLog)
 
-        btnStopScan.setOnClickListener {
-            mapPresenter.stopScan()
-            btnStartScan.visibility = View.VISIBLE
-            btnStopScan.visibility = View.INVISIBLE
-            btnNewRoom.visibility = View.INVISIBLE
-        }
+            btnStartScan.setOnClickListener {
+                mapPresenter.startScan()
+                btnStartScan.visibility = View.INVISIBLE
+                btnStopScan.visibility = View.VISIBLE
+                btnNewRoom.visibility = View.VISIBLE
+            }
 
-        btnNewRoom.setOnClickListener {
-            alerterNewRoom()
-            btnExitRoom.visibility = View.VISIBLE
-            btnNewRoom.visibility = View.INVISIBLE
-        }
+            btnStopScan.setOnClickListener {
+                mapPresenter.stopScan()
+                btnStartScan.visibility = View.VISIBLE
+                btnStopScan.visibility = View.INVISIBLE
+                btnNewRoom.visibility = View.INVISIBLE
+            }
 
-        btnExitRoom.setOnClickListener {
-            btnNewRoom.visibility = View.VISIBLE
-            btnExitRoom.visibility = View.INVISIBLE
-            mapPresenter.exitRoom()
+            btnNewRoom.setOnClickListener {
+                alerterNewRoom()
+                btnExitRoom.visibility = View.VISIBLE
+                btnNewRoom.visibility = View.INVISIBLE
+            }
+
+            btnExitRoom.setOnClickListener {
+                btnNewRoom.visibility = View.VISIBLE
+                btnExitRoom.visibility = View.INVISIBLE
+                mapPresenter.exitRoom()
+            }
         }
     }
 
@@ -115,18 +120,16 @@ class MapsFragment : Fragment() {
 
     fun changeLocation(location: LatLng) {
         currentLocation = location
-        addTextToTvLog("GPS: Lat: ${coerceLocLat(location.latitude)} " +
-                "Long: ${coerceLocLat(location.longitude)}\n")
+        addTextToTvLog(
+            "GPS: Lat: ${coerceLocLat(location.latitude)} " +
+                    "Long: ${coerceLocLat(location.longitude)}\n"
+        )
         mapFragment.getMapAsync(callback)
-    }
-
-    fun logWifi(x: ScanResult) {
-        addTextToTvLog("WIFI: ${x.BSSID} ${x.level}\n")
     }
 
     private fun addTextToTvLog(txt: String) {
         textForLog.append(txt)
-        if (textForLog.lines().size > 8) {
+        if (textForLog.lines().size > 15) {
             textForLog.delete(0, textForLog.indexOf("\n") + 1)
             textForLog.capacity()
         }
@@ -136,4 +139,24 @@ class MapsFragment : Fragment() {
 
     private fun coerceLocLat(double: Double) =
         double.toString().substring(0, double.toString().length.coerceAtMost(10))
+
+    fun logRtt(it: RangingResult) {
+        addTextToTvLog("Ranging res: ${it.macAddress} ${it.distanceMm} ${it.status}")
+    }
+
+    fun logError(code: Int?, text: String?) {
+        if (code != null && text != null) {
+            addTextToTvLog("Error with code: $code and reason: $text")
+        } else if (code != null) {
+            addTextToTvLog("Error with code $code")
+        } else if (text != null) {
+            addTextToTvLog("Error: $text")
+        } else {
+            addTextToTvLog("Unexpected errors")
+        }
+    }
+
+    fun logIt(s: String) {
+        addTextToTvLog(s)
+    }
 }
