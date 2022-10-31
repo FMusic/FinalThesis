@@ -1,4 +1,4 @@
-package fm.pathfinder.collecting.sensors
+package fm.pathfinder.collecting.wifi
 
 import android.net.wifi.rtt.RangingResult
 import android.net.wifi.rtt.RangingResultCallback

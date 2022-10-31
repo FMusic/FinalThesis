@@ -1,45 +1,51 @@
 package fm.pathfinder.collecting
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
 import android.util.Log
 import android.widget.Toast
-import com.google.android.gms.maps.model.LatLng
-import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import fm.pathfinder.Constants
 import fm.pathfinder.MainActivity
-import fm.pathfinder.collecting.sensors.WifiProcessor
+import fm.pathfinder.conf.LocalDateTimeSerializer
+import fm.pathfinder.collecting.wifi.WifiProcessor
+import java.time.LocalDateTime
 
-@SuppressLint("MissingPermission")
 class MapPresenter(
     private val mapsFragment: MapsFragment,
     private val mainActivity: MainActivity
-) : LocationListener {
+) {
     companion object {
         private const val TAG: String = "MapPresenter"
     }
 
     private lateinit var wifiProcessor: WifiProcessor
     private lateinit var sensorsProcessor: SensorsProcessor
+    private lateinit var gpsProcessor: GpsService
     private var scanningOn = false
+    private val samplingPeriod = Constants.SLEEP_TIME_MS.times(1000).toInt()
 
-    private var locationScanner = LocationScanner(this)
-
+    private var locationCollector = LocationCollector(mapsFragment::logIt)
 
     init {
         try {
-            initLocationRequests()
+            gpsProcessor = GpsService(mapsFragment, locationCollector)
             val mSensorManager =
                 mainActivity.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-            sensorsProcessor = SensorsProcessor(mSensorManager, mapsFragment, locationScanner)
-            wifiProcessor = WifiProcessor(mapsFragment, locationScanner)
+            val accelerationProcessor =
+                OrientationProcessor(mapsFragment.context, locationCollector::angleChange)
+            listOf(Sensor.TYPE_ROTATION_VECTOR).forEach {
+                val sensor = mSensorManager.getDefaultSensor(it)
+                mSensorManager.registerListener(accelerationProcessor, sensor, samplingPeriod)
+            }
+            val velocityProcessor =
+                VelocityProcessor(mapsFragment.context, locationCollector::distance)
+            listOf(Sensor.TYPE_LINEAR_ACCELERATION, Sensor.TYPE_ACCELEROMETER).forEach {
+                val sensor = mSensorManager.getDefaultSensor(it)
+                mSensorManager.registerListener(velocityProcessor, sensor, samplingPeriod)
+            }
+            wifiProcessor = WifiProcessor(mapsFragment, locationCollector)
         } catch (e: SecurityException) {
             Log.e(TAG, "SECURITY, NO WIFI WILL BE AVAILABLE")
             e.printStackTrace()
@@ -47,46 +53,31 @@ class MapPresenter(
     }
 
 
-    private fun initLocationRequests() {
-        val locationManager =
-            mapsFragment.activity?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        locationManager.requestLocationUpdates(
-            LocationManager.GPS_PROVIDER,
-            Constants.SLEEP_TIME_MS,
-            Constants.MIN_DISTANCE_FEET,
-            this
-        )
-    }
-
     fun startScan() {
         scanningOn = true
+        locationCollector.startScan()
         wifiProcessor.startScan()
     }
 
     fun stopScan() {
         scanningOn = false
-        val buildingData = locationScanner.extractData()
-        val jsonBuilding = Gson().toJson(buildingData)
+        val buildingData = locationCollector.extractData()
+        val gsonBuilder =
+            GsonBuilder().registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeSerializer())
+        val gson = gsonBuilder.setPrettyPrinting().create()
+        val jsonBuilding = gson.toJson(buildingData)
         mainActivity.createFile(jsonBuilding)
         Toast.makeText(mapsFragment.context, "Saving building data", Toast.LENGTH_SHORT).show()
     }
 
     fun newRoom(roomName: String) {
-        locationScanner.enterNewRoom(roomName)
+        locationCollector.enterNewRoom(roomName)
         Toast.makeText(mapsFragment.context, "New Room enter $roomName", Toast.LENGTH_SHORT).show()
     }
 
     fun exitRoom() {
-        val roomName = locationScanner.exitRoom()
+        val roomName = locationCollector.exitRoom()
         Toast.makeText(mapsFragment.context, "Room exited $roomName", Toast.LENGTH_SHORT).show()
-    }
-
-
-    override fun onLocationChanged(location: Location) {
-        Log.i(TAG, "Location/GPS: $location")
-        mapsFragment.logIt("GPS: ${location.longitude}, ${location.latitude}")
-        mapsFragment.changeLocation(LatLng(location.latitude, location.longitude))
-        locationScanner.addLocation(location)
     }
 
 

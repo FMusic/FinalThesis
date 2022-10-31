@@ -1,4 +1,4 @@
-package fm.pathfinder.collecting.sensors
+package fm.pathfinder.collecting.wifi
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
@@ -9,12 +9,11 @@ import android.content.pm.PackageManager
 import android.net.wifi.ScanResult
 import android.net.wifi.WifiManager
 import android.net.wifi.rtt.RangingRequest
-import android.net.wifi.rtt.RangingResult
-import android.net.wifi.rtt.RangingResultCallback
 import android.net.wifi.rtt.WifiRttManager
 import android.util.Log
 import android.widget.Toast
-import fm.pathfinder.collecting.LocationScanner
+import fm.pathfinder.Constants
+import fm.pathfinder.collecting.LocationCollector
 import fm.pathfinder.collecting.MapsFragment
 import fm.pathfinder.exceptions.WifiException
 import java.util.concurrent.Executors
@@ -23,7 +22,7 @@ import java.util.concurrent.TimeUnit
 
 class WifiProcessor(
     private val mapsFragment: MapsFragment,
-    private val locationScanner: LocationScanner
+    private val locationCollector: LocationCollector
 ) : BroadcastReceiver() {
     private var rttSupport = false
     private var scanningOn = false
@@ -93,17 +92,15 @@ class WifiProcessor(
 
     @SuppressLint("MissingPermission")
     override fun onReceive(context: Context?, intent: Intent) {
-        mapsFragment.logIt("======NOVI SCAN======")
         if (intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)) {
 
-            val wifiResults = locationScanner.addWifiSpots(mWifiManager.scanResults)
-// start rtt for new routers and networks
-
+            val wifiResults = locationCollector.addWifiSpots(mWifiManager.scanResults)
+            // start rtt for new routers and networks
             wifiResults.allWifiScanResults.forEach {
                 mapsFragment.logIt("WIFI: ${it.BSSID} ${it.SSID} ${it.level}\n")
             }
             if (scanningOn) {
-                mBackgroundExecutor.schedule({ startScan() }, 1, TimeUnit.SECONDS)
+                mBackgroundExecutor.schedule({ startScan() }, Constants.SLEEP_TIME_MS, TimeUnit.MILLISECONDS)
                 if (wifiResults.uniqueWifiResults.isNotEmpty()) {
                     initNewRangingRequest(listOf(wifiResults.uniqueWifiResults[0]))
                     wifiResults.uniqueWifiResults.forEach {
@@ -118,8 +115,8 @@ class WifiProcessor(
 
     fun startScan() {
         mWifiManager.startScan()
-        if (locationScanner.uniqueWifiRoutersScanResults.isNotEmpty()) {
-            initNewRangingRequest(locationScanner.uniqueWifiRoutersScanResults)
+        if (locationCollector.uniqueWifiRoutersScanResults.isNotEmpty()) {
+            initNewRangingRequest(locationCollector.uniqueWifiRoutersScanResults)
         }
     }
 

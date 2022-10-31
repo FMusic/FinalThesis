@@ -1,10 +1,8 @@
 package fm.pathfinder.collecting
 
 import android.app.AlertDialog
-import android.net.wifi.ScanResult
 import android.net.wifi.rtt.RangingResult
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -56,44 +54,46 @@ class MapsFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_maps, container, false)
     }
 
+    override fun onResume() {
+        super.onResume()
+        mapPresenter = MapPresenter(this, mainActivity)
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         mapFragment = (childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?)!!
-        mainActivity?.let {
-            mapPresenter = MapPresenter(this, mainActivity)
 
 
-            val btnStartScan = view.findViewById<Button>(R.id.btnStartScan)
-            val btnStopScan = view.findViewById<Button>(R.id.btnStopScan)
-            val btnNewRoom = view.findViewById<Button>(R.id.btnNewRoom)
-            val btnExitRoom = view.findViewById<Button>(R.id.btnExitRoom)
-            tvLogger = view.findViewById(R.id.tvLog)
+        val btnStartScan = view.findViewById<Button>(R.id.btnStartScan)
+        val btnStopScan = view.findViewById<Button>(R.id.btnStopScan)
+        val btnNewRoom = view.findViewById<Button>(R.id.btnNewRoom)
+        val btnExitRoom = view.findViewById<Button>(R.id.btnExitRoom)
+        tvLogger = view.findViewById(R.id.tvLog)
 
-            btnStartScan.setOnClickListener {
-                mapPresenter.startScan()
-                btnStartScan.visibility = View.INVISIBLE
-                btnStopScan.visibility = View.VISIBLE
-                btnNewRoom.visibility = View.VISIBLE
-            }
+        btnStartScan.setOnClickListener {
+            mapPresenter.startScan()
+            btnStartScan.visibility = View.INVISIBLE
+            btnStopScan.visibility = View.VISIBLE
+            btnNewRoom.visibility = View.VISIBLE
+        }
 
-            btnStopScan.setOnClickListener {
-                mapPresenter.stopScan()
-                btnStartScan.visibility = View.VISIBLE
-                btnStopScan.visibility = View.INVISIBLE
-                btnNewRoom.visibility = View.INVISIBLE
-            }
+        btnStopScan.setOnClickListener {
+            mapPresenter.stopScan()
+            btnStartScan.visibility = View.VISIBLE
+            btnStopScan.visibility = View.INVISIBLE
+            btnNewRoom.visibility = View.INVISIBLE
+        }
 
-            btnNewRoom.setOnClickListener {
-                alerterNewRoom()
-                btnExitRoom.visibility = View.VISIBLE
-                btnNewRoom.visibility = View.INVISIBLE
-            }
+        btnNewRoom.setOnClickListener {
+            alerterNewRoom()
+            btnExitRoom.visibility = View.VISIBLE
+            btnNewRoom.visibility = View.INVISIBLE
+        }
 
-            btnExitRoom.setOnClickListener {
-                btnNewRoom.visibility = View.VISIBLE
-                btnExitRoom.visibility = View.INVISIBLE
-                mapPresenter.exitRoom()
-            }
+        btnExitRoom.setOnClickListener {
+            btnNewRoom.visibility = View.VISIBLE
+            btnExitRoom.visibility = View.INVISIBLE
+            mapPresenter.exitRoom()
         }
     }
 
