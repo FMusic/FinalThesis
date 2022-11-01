@@ -94,29 +94,35 @@ class WifiProcessor(
     override fun onReceive(context: Context?, intent: Intent) {
         if (intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)) {
 
-            val wifiResults = locationCollector.addWifiSpots(mWifiManager.scanResults)
-            // start rtt for new routers and networks
-            wifiResults.allWifiScanResults.forEach {
-                mapsFragment.logIt("WIFI: ${it.BSSID} ${it.SSID} ${it.level}\n")
-            }
-            if (scanningOn) {
-                mBackgroundExecutor.schedule({ startScan() }, Constants.SLEEP_TIME_MS, TimeUnit.MILLISECONDS)
-                if (wifiResults.uniqueWifiResults.isNotEmpty()) {
-                    initNewRangingRequest(listOf(wifiResults.uniqueWifiResults[0]))
-                    wifiResults.uniqueWifiResults.forEach {
-                        mapsFragment.logIt("UniqueWifi: ${it.BSSID} ${it.SSID}\n")
-                    }
+            when (scanningOn) {
+                true -> {
+                    mBackgroundExecutor.schedule(
+                        { startScan() },
+                        Constants.SLEEP_TIME_MS,
+                        TimeUnit.MILLISECONDS
+                    )
+                    // add wifi spots returns newly discovered wifi routers
+                    // for which rtt should be initialized
+                    initNewRangingRequest(
+                        locationCollector.addWifiSpots(mWifiManager.scanResults)
+                    )
                 }
-            } else {
-                mBackgroundExecutor.schedule({ startScan() }, 20, TimeUnit.SECONDS)
+                false -> {
+                    mBackgroundExecutor.schedule(
+                        { startScan() },
+                        Constants.SLEEP_NOSCAN_TIME_MS,
+                        TimeUnit.MILLISECONDS
+                    )
+                    locationCollector.addWifiSpots(mWifiManager.scanResults)
+                }
             }
         }
     }
 
     fun startScan() {
         mWifiManager.startScan()
-        if (locationCollector.uniqueWifiRoutersScanResults.isNotEmpty()) {
-            initNewRangingRequest(locationCollector.uniqueWifiRoutersScanResults)
+        if (locationCollector.allWifiRouters.isNotEmpty()) {
+            initNewRangingRequest(locationCollector.allWifiRouters)
         }
     }
 

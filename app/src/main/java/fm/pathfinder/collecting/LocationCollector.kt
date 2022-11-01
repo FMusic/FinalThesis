@@ -7,7 +7,6 @@ import fm.pathfinder.model.GpsLocation
 import fm.pathfinder.model.Room
 import fm.pathfinder.model.Spot
 import fm.pathfinder.model.WifiScanResult
-import fm.pathfinder.model.tpls.WifiResultTuple
 import java.time.LocalDateTime
 import kotlin.math.abs
 
@@ -17,15 +16,15 @@ class LocationCollector(
     private val locations = ArrayList<GpsLocation>()
     private val rooms = HashSet<Room>()
     private val uniqueWifiRouters = HashSet<String>()
-    val uniqueWifiRoutersScanResults = ArrayList<ScanResult>()
+    val allWifiRouters = ArrayList<ScanResult>()
     private val locationsByRoom = HashMap<Room, ArrayList<Location>>()
 
-    var currentRoom: Room = Room("first", ArrayList(), LocalDateTime.now())
-    private var lastKnownLocation = GpsLocation(.0, .0, .0, .0f, 0L, LocalDateTime.now())
-
+    var currentRoom: Room = Room("Hallway", ArrayList(), LocalDateTime.now())
+    private lateinit var lastKnownLocation: GpsLocation
     private var directionDegrees = 0F
-
     private var distanceSum = 0F
+
+    private var currentSpot: Spot = Spot(0F)
 
 
     init {
@@ -33,29 +32,30 @@ class LocationCollector(
     }
 
     fun enterNewRoom(roomName: String) {
+        Log.i(TAG, "Room switch: ${currentRoom.roomName} to $roomName")
         rooms.add(currentRoom)
-        val room = Room(roomName, ArrayList(), LocalDateTime.now())
-        currentRoom = room
-        locationsByRoom[room] = ArrayList()
+        currentRoom = Room(roomName, ArrayList(), LocalDateTime.now())
+        locationsByRoom[currentRoom] = ArrayList()
     }
 
     fun addLocation(location: Location) {
-        val currentLocation = GpsLocation(
-            location.latitude,
-            location.longitude,
-            location.altitude,
-            location.accuracy,
-            location.time,
-            LocalDateTime.now()
-        )
-        lastKnownLocation = currentLocation
-        locations.add(currentLocation)
-        locationsByRoom[currentRoom]?.add(location)
+//        val currentLocation = GpsLocation(
+//            location.latitude,
+//            location.longitude,
+//            location.altitude,
+//            location.accuracy,
+//            location.time,
+//            LocalDateTime.now()
+//        )
+//        lastKnownLocation = currentLocation
+//        locations.add(currentLocation)
+//        locationsByRoom[currentRoom]?.add(location)
     }
 
     fun extractData(): Any {
+        currentRoom.listOfSpots.add(currentSpot)
         rooms.add(currentRoom)
-        Log.i(TAG, "returning data: " + (rooms.iterator().next().listOfSpots[0].wifiList[0].toString()))
+        Log.i(TAG, "Extracting data..")
         return rooms;
     }
 
@@ -63,39 +63,52 @@ class LocationCollector(
         return "why"
     }
 
-    fun addWifiSpots(wifiResults: List<ScanResult>): WifiResultTuple {
-        val uniqueWifiResults = ArrayList<ScanResult>()
+    fun addWifiSpots(wifiResults: List<ScanResult>): ArrayList<ScanResult> {
         val wifiScanResults = ArrayList<WifiScanResult>()
         val wifiScanResFinal = ArrayList<ScanResult>()
         wifiResults.forEach {
-            val isAdded = uniqueWifiRouters.add(it.BSSID)
-            if (isAdded) {
-                uniqueWifiResults.add(it)
+            if (uniqueWifiRouters.add(it.BSSID)) {
+                wifiScanResFinal.add(it)
             }
-            val wifiScanResult = WifiScanResult(it.SSID, it.BSSID, it.level, it.timestamp, LocalDateTime.now())
-            wifiScanResults.add(wifiScanResult)
-            wifiScanResFinal.add(it)
+            wifiScanResults.add(
+                WifiScanResult(
+                    it.SSID,
+                    it.BSSID,
+                    it.level,
+                    it.timestamp,
+                    LocalDateTime.now()
+                )
+            )
         }
-        currentRoom.listOfSpots.add(Spot(wifiScanResults, lastKnownLocation, directionDegrees))
-        uniqueWifiRoutersScanResults.addAll(wifiScanResFinal)
-        return WifiResultTuple(uniqueWifiResults, wifiScanResFinal)
+        Log.i(TAG, "WIFI Results are here")
+        allWifiRouters.addAll(wifiScanResFinal)
+        currentSpot.wifiList.addAll(wifiScanResults)
+        return wifiScanResFinal
     }
 
-    fun angleChange(degrees: Float){
-        if (abs(degrees - directionDegrees) > 30){
+    fun angleChange(degrees: Float) {
+        if (abs(degrees - directionDegrees) > 30) {
             directionDegrees = degrees
             logFunc("New degrees: $directionDegrees\n")
-            Log.i("Deg", "Degrees: $directionDegrees")
+            Log.i(TAG, "Degrees: $directionDegrees")
         }
+        currentSpot.movementDirection = degrees
     }
 
     fun startScan() {
 
     }
 
-    fun distance(distance: Float){
+    fun distance(distance: Float) {
+        Log.i(
+            TAG, "finishing: " +
+                    "dist: ${currentSpot.distance} " +
+                    "angle: ${currentSpot.movementDirection} " +
+                    "wifis: ${if (currentSpot.wifiList.isNotEmpty()) "FULL" else "EMPTY"}"
+        )
+        currentRoom.listOfSpots.add(currentSpot)
         distanceSum += distance
-        Log.i("dist", "DISTANCE: $distance, sum=$distanceSum")
+        currentSpot = Spot(distanceSum)
     }
 
     companion object {
