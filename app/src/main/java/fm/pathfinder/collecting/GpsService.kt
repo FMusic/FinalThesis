@@ -8,6 +8,7 @@ import android.location.LocationManager
 import android.util.Log
 import com.google.android.gms.maps.model.LatLng
 import fm.pathfinder.Constants
+import fm.pathfinder.fragments.MapsFragment
 
 @SuppressLint("MissingPermission")
 class GpsService(

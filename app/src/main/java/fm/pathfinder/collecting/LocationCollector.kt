@@ -13,18 +13,20 @@ import kotlin.math.abs
 class LocationCollector(
     private val logFunc: (String) -> Unit
 ) {
+    private var scanning = false
     private val locations = ArrayList<GpsLocation>()
     private val rooms = HashSet<Room>()
     private val uniqueWifiRouters = HashSet<String>()
     val allWifiRouters = ArrayList<ScanResult>()
     private val locationsByRoom = HashMap<Room, ArrayList<Location>>()
+    private val defaultRoom = Room("Hallway", ArrayList(), LocalDateTime.now())
 
-    var currentRoom: Room = Room("Hallway", ArrayList(), LocalDateTime.now())
+    var currentRoom: Room = defaultRoom
     private lateinit var lastKnownLocation: GpsLocation
     private var directionDegrees = 0F
-    private var distanceSum = 0F
+    private var distanceSum = 0.0
 
-    private var currentSpot: Spot = Spot(0F)
+    private var currentSpot: Spot = Spot(0.0)
 
 
     init {
@@ -82,33 +84,37 @@ class LocationCollector(
         }
         Log.i(TAG, "WIFI Results are here")
         allWifiRouters.addAll(wifiScanResFinal)
-        currentSpot.wifiList.addAll(wifiScanResults)
+        if (scanning) {
+            currentSpot.wifiList.addAll(wifiScanResults)
+        }
         return wifiScanResFinal
     }
 
     fun angleChange(degrees: Float) {
         if (abs(degrees - directionDegrees) > 30) {
             directionDegrees = degrees
-            logFunc("New degrees: $directionDegrees\n")
-            Log.i(TAG, "Degrees: $directionDegrees")
+//            logFunc("New degrees: $directionDegrees\n")
         }
-        currentSpot.movementDirection = degrees
+        if (scanning) {
+            currentSpot.movementDirection = degrees
+        }
     }
 
     fun startScan() {
-
+        scanning = true
     }
 
-    fun distance(distance: Float) {
+    fun distance(distance: Double) {
         Log.i(
-            TAG, "finishing: " +
-                    "dist: ${currentSpot.distance} " +
-                    "angle: ${currentSpot.movementDirection} " +
+            TAG, "SPOT: dist: ${currentSpot.distance} angle: ${currentSpot.movementDirection} " +
                     "wifis: ${if (currentSpot.wifiList.isNotEmpty()) "FULL" else "EMPTY"}"
         )
-        currentRoom.listOfSpots.add(currentSpot)
-        distanceSum += distance
-        currentSpot = Spot(distanceSum)
+        logFunc("Distance: ${currentSpot.distance}, Angle: ${currentSpot.movementDirection}\n")
+        if (scanning) {
+            currentRoom.listOfSpots.add(currentSpot)
+            distanceSum += distance
+            currentSpot = Spot(distanceSum)
+        }
     }
 
     companion object {

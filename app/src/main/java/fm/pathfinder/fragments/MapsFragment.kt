@@ -1,4 +1,4 @@
-package fm.pathfinder.collecting
+package fm.pathfinder.fragments
 
 import android.app.AlertDialog
 import android.net.wifi.rtt.RangingResult
@@ -17,6 +17,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import fm.pathfinder.MainActivity
 import fm.pathfinder.R
+import fm.pathfinder.collecting.MapPresenter
 
 class MapsFragment : Fragment() {
 

@@ -7,11 +7,16 @@ import android.hardware.SensorEventListener
 import android.opengl.Matrix.multiplyMV
 import android.util.Log
 import java.util.*
+import java.util.stream.Collectors
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-class VelocityProcessor(context: Context?, val collector: (Float) -> Unit) : SensorEventListener {
+class VelocityProcessor(
+    context: Context?,
+    val collector: (Double) -> Unit,
+    velocityOrientationMatrix: () -> FloatArray
+) : SensorEventListener {
     private var velocity: Float = 0F
     private var appliedAcceleration: Float = 0F
     private var lastUpdatedate = Date(System.currentTimeMillis())
@@ -21,10 +26,7 @@ class VelocityProcessor(context: Context?, val collector: (Float) -> Unit) : Sen
     private var linearAccelerationVals = FloatArray(4)
     private var rotationMatrixInverse = FloatArray(16)
 
-    private var lastTick = System.currentTimeMillis()
-    private val samplePeriod = 15
-
-    private val DISTANCE_CALI = 20
+    private var lastTick = 0L
 
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
@@ -38,27 +40,58 @@ class VelocityProcessor(context: Context?, val collector: (Float) -> Unit) : Sen
         }
     }
 
+    class LimitedSizeQueue<K>(private val maxSize: Int) : ArrayList<K>() {
+        override fun add(element: K): Boolean {
+            val r = super.add(element)
+            if (size > maxSize) {
+                removeRange(0, size - maxSize)
+            }
+            return r
+        }
+
+        val isFull = size >= maxSize
+    }
+
+    private val NUMBER_OF_NEC_VALUES = 5
+    private val eventValuesX = LimitedSizeQueue<Float>(NUMBER_OF_NEC_VALUES)
+    private val eventValuesY = LimitedSizeQueue<Float>(NUMBER_OF_NEC_VALUES)
+    private val eventValuesZ = LimitedSizeQueue<Float>(NUMBER_OF_NEC_VALUES)
+
+
     private fun pokusaj2(eventValues: FloatArray) {
         val tick = System.currentTimeMillis()
-        val localPeriod = tick - lastTick
+        val localPeriod = (tick - lastTick).toDouble().div(1000)
 
-        if (localPeriod > samplePeriod) {
-            lastTick = tick
-            val motion = sqrt(
-                eventValues[0].pow(2)
-                        + eventValues[1].pow(2)
-//                        + eventValues[2].pow(2)
-            )
-            val distanceInMM = motion.times(localPeriod)
-            if (distanceInMM > DISTANCE_CALI){
-                collector(distanceInMM.div(1000))
+        lastTick = tick
+        eventValuesX.add(eventValues[0])
+        eventValuesY.add(eventValues[1])
+        eventValuesZ.add(eventValues[2])
+        if (!eventValuesX.isEmpty()) {
+            val avgX =
+                eventValuesX.stream().collect(Collectors.averagingDouble { it.toDouble() })
+            val avgY =
+                eventValuesY.stream().collect(Collectors.averagingDouble { it.toDouble() })
+            val avgZ =
+                eventValuesZ.stream().collect(Collectors.averagingDouble { it.toDouble() })
+            val xSign = avgX > 0
+            val ySign = avgY > 0
+            val motion = sqrt(avgX.pow(2) + avgY.pow(2))
+            if (motion > 0.1) {
+                val speedInM = motion.times(localPeriod)
+                val distanceInM = speedInM.times(localPeriod)
+                Log.i( "Velocity", "Motion: $motion, " +
+                       "Period: $localPeriod, " +
+                       "Speed: $speedInM, " +
+                       "Distance: $distanceInM" )
+                if (distanceInM < 20) {
+                    collector(distanceInM)
+                }
             }
-
         }
+
     }
 
     private fun nes(eventValues: FloatArray) {
-
         Log.i("Acc", "AccelDE: ${eventValues[0]} ${eventValues[1]} ${eventValues[2]}")
         System.arraycopy(eventValues, 0, linearAccelerationVals, 0, eventValues.size)
         multiplyMV(accelerationByAxis, 0, rotationMatrixInverse, 0, linearAccelerationVals, 0)

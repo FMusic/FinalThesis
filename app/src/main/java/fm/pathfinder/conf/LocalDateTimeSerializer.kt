@@ -1,12 +1,10 @@
 package fm.pathfinder.conf
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonPrimitive
-import com.google.gson.JsonSerializationContext
-import com.google.gson.JsonSerializer
+import com.google.gson.*
 import java.lang.reflect.Type
-import java.time.LocalDate
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 class LocalDateTimeSerializer : JsonSerializer<LocalDateTime>{
     override fun serialize(
@@ -14,7 +12,18 @@ class LocalDateTimeSerializer : JsonSerializer<LocalDateTime>{
         typeOfSrc: Type?,
         context: JsonSerializationContext?
     ): JsonElement {
-        return JsonPrimitive(src.toString())
+        return JsonPrimitive(src!!.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
     }
 
+}
+
+class LocalDateTimeDeserializer: JsonDeserializer<LocalDateTime>{
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): LocalDateTime {
+        val instant: Instant = Instant.ofEpochMilli(json!!.asJsonPrimitive.asLong)
+        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+    }
 }

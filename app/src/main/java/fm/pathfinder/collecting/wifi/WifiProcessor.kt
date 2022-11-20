@@ -14,7 +14,7 @@ import android.util.Log
 import android.widget.Toast
 import fm.pathfinder.Constants
 import fm.pathfinder.collecting.LocationCollector
-import fm.pathfinder.collecting.MapsFragment
+import fm.pathfinder.fragments.MapsFragment
 import fm.pathfinder.exceptions.WifiException
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -132,7 +132,14 @@ class WifiProcessor(
             return
         val mgr =
             mapsFragment.context?.getSystemService(Context.WIFI_RTT_RANGING_SERVICE) as WifiRttManager
-        val request: RangingRequest = RangingRequest.Builder().addAccessPoints(apsToRange).build()
+
+        var request: RangingRequest
+        if (apsToRange.size >= RangingRequest.getMaxPeers()) {
+            request = RangingRequest.Builder()
+                .addAccessPoints(apsToRange.subList(0, RangingRequest.getMaxPeers() - 1)).build()
+        } else{
+            request = RangingRequest.Builder().addAccessPoints(apsToRange).build()
+        }
         mgr.startRanging(
             request,
             mapsFragment.requireContext().mainExecutor,

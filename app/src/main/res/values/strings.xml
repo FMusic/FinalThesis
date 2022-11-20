@@ -7,4 +7,6 @@
     <string name="new_room">new room</string>
     <string name="eg_r01">eg. R01</string>
     <string name="exit_room">exit room</string>
+    <string name="list_of_available_buildings">List of available buildings:</string>
+    <string name="example_value">Example Value</string>
 </resources>

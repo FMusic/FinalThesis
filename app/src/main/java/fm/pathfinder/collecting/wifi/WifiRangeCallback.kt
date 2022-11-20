@@ -3,7 +3,7 @@ package fm.pathfinder.collecting.wifi
 import android.net.wifi.rtt.RangingResult
 import android.net.wifi.rtt.RangingResultCallback
 import android.util.Log
-import fm.pathfinder.collecting.MapsFragment
+import fm.pathfinder.fragments.MapsFragment
 
 class WifiRangeCallback(private val mapsFragment: MapsFragment) : RangingResultCallback() {
         override fun onRangingFailure(code: Int) {

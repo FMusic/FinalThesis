@@ -2,11 +2,9 @@ package fm.pathfinder.collecting
 
 import android.hardware.Sensor
 import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.util.Log
-import fm.pathfinder.Constants
-import kotlin.math.PI
+import fm.pathfinder.fragments.MapsFragment
 
 class SensorsProcessor(
     mSensorManager: SensorManager,

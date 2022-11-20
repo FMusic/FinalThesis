@@ -18,7 +18,7 @@ import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import fm.pathfinder.fragments.DataStorageFragment
 import fm.pathfinder.fragments.FragmentChangeListener
 import fm.pathfinder.fragments.MainMenuFragment
-import fm.pathfinder.collecting.MapsFragment
+import fm.pathfinder.fragments.MapsFragment
 import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity(), FragmentChangeListener,
