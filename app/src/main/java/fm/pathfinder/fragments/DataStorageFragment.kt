@@ -54,7 +54,7 @@ class DataStorageFragment : Fragment() {
     }
 
     private fun openNavigationForFile(filename: String) {
-        val rooms = fileManager.loadDataFromFile(filename)
+        FragmentChanger.changeFragment(parentFragmentManager, 3, filename)
     }
 
     companion object {

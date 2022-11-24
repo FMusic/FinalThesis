@@ -15,7 +15,7 @@ import java.time.LocalDateTime
 
 class MapPresenter(
     private val mapsFragment: MapsFragment,
-    private val mainActivity: MainActivity
+    private val context: Context
 ) {
     companion object {
         private const val TAG: String = "MapPresenter"
@@ -25,7 +25,6 @@ class MapPresenter(
     private lateinit var sensorsProcessor: SensorsProcessor
     private lateinit var gpsProcessor: GpsService
     private var scanningOn = false
-//    private val samplingPeriod = Constants.SLEEP_TIME_MS.times(1000).toInt()
     private val samplingPeriod = SensorManager.SENSOR_DELAY_GAME
 
     private var locationCollector = LocationCollector(mapsFragment::logIt)
@@ -34,7 +33,7 @@ class MapPresenter(
         try {
             gpsProcessor = GpsService(mapsFragment, locationCollector)
             val mSensorManager =
-                mainActivity.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+                context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             val accelerationProcessor =
                 OrientationProcessor(mapsFragment.context, locationCollector::angleChange)
             listOf(Sensor.TYPE_ROTATION_VECTOR).forEach {

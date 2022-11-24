@@ -59,7 +59,6 @@ class FileManager(
                 fileString.append(xo + "\n")
             }
         }
-//        val collectionType: Type = object : TypeToken<Collection<Room?>?>() {}.type
         return gson.fromJson(fileString.toString())
     }
 

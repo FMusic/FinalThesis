@@ -30,8 +30,6 @@ class MapsFragment : Fragment() {
     private lateinit var tvLogger: TextView
     private val textForLog = StringBuilder()
 
-    private lateinit var mainActivity: MainActivity
-
     private val callback = OnMapReadyCallback { googleMap ->
         if (this::currentLocation.isInitialized) {
             googleMap.addMarker(MarkerOptions().position(currentLocation).title("Current Location"))
@@ -41,9 +39,8 @@ class MapsFragment : Fragment() {
 
     companion object {
         @JvmStatic
-        fun newInstance(ma: MainActivity) =
+        fun newInstance() =
             MapsFragment().apply {
-                mainActivity = ma
             }
     }
 
@@ -57,7 +54,7 @@ class MapsFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        mapPresenter = MapPresenter(this, mainActivity)
+        mapPresenter = MapPresenter(this, requireContext())
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
