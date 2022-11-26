@@ -1,14 +1,13 @@
 package fm.pathfinder.fragments
 
+import android.graphics.Color
+import android.graphics.Paint
 import android.os.Bundle
+import android.view.*
 import androidx.fragment.app.Fragment
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.ImageView
 import fm.pathfinder.Constants
-import fm.pathfinder.views.MapDrawable
 import fm.pathfinder.R
+import fm.pathfinder.model.MapLine
 import fm.pathfinder.navigation.NavigationPresenter
 
 
@@ -17,8 +16,14 @@ import fm.pathfinder.navigation.NavigationPresenter
  * Use the [NavigationFragment.newInstance] factory method to
  * create an instance of this fragment.
  */
-class NavigationFragment : Fragment() {
+class NavigationFragment : Fragment(), SurfaceHolder.Callback {
+    private lateinit var holder: SurfaceHolder
     private lateinit var navigationPresenter: NavigationPresenter
+    private val mPaint = Paint().apply {
+        isAntiAlias = true
+        color = Color.RED
+        style = Paint.Style.FILL
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,12 +38,13 @@ class NavigationFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         // Inflate the layout for this fragment
-
-        val a = inflater.inflate(R.layout.fragment_navigation, container, false)
-        var mapDrawing = MapDrawable()
-        var img = a.findViewById<ImageView>(R.id.viewMap)
-        img.setImageDrawable(mapDrawing)
-        return a
+        val inflatedLayout = inflater.inflate(R.layout.fragment_navigation, container, false)
+        val surface = inflatedLayout.findViewById<SurfaceView>(R.id.viewMap)
+        surface.setBackgroundColor(Color.WHITE)
+        surface.setZOrderOnTop(true)
+        holder = surface.holder
+        holder.addCallback(this)
+        return inflatedLayout
     }
 
 
@@ -50,7 +56,6 @@ class NavigationFragment : Fragment() {
          * @param buildingName File name of building to load.
          * @return A new instance of fragment NavigationFragment.
          */
-        // TODO: Rename and change types and number of parameters
         @JvmStatic
         fun newInstance(buildingName: String) =
             NavigationFragment().apply {
@@ -59,4 +64,29 @@ class NavigationFragment : Fragment() {
                 }
             }
     }
+
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        val canvas = holder.lockCanvas()
+
+        val origigiMap = navigationPresenter.prepareAndScaleMap(canvas.height, canvas.width)
+
+        origigiMap.forEach {
+            canvas.drawLine(it.startX, it.startY, it.stopX, it.stopY, mPaint)
+        }
+        holder.unlockCanvasAndPost(canvas)
+    }
+
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+    }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) {
+    }
+
+    fun addToSurface(mapLine: MapLine){
+        val can = holder.lockCanvas()
+        can.drawLine(mapLine.startX, mapLine.startY, mapLine.stopX, mapLine.stopY, mPaint)
+        holder.unlockCanvasAndPost(can)
+
+    }
+
 }

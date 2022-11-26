@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.DocumentsContract
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentTransaction
@@ -29,6 +30,25 @@ class MainActivity : AppCompatActivity(),
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        onBackPressedDispatcher.addCallback(object: OnBackPressedCallback(true){
+            override fun handleOnBackPressed() {
+                val fragment =
+                    supportFragmentManager.findFragmentById(R.id.fragment_container)
+                if (fragment is MainMenuFragment) {
+                    if (backPressed)
+                        finishAffinity()
+                    else {
+                        backPressed = true
+                        val toastText = "Press back again for exit"
+                        Toast.makeText(applicationContext, toastText, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                else {
+                    FragmentChanger.changeFragment(supportFragmentManager, 0)
+                }
+            }
+
+        })
         FragmentChanger.changeFragment(supportFragmentManager, 0)
         if (!permissionsGranted)
             if (Build.VERSION.SDK_INT >= 33)
@@ -64,22 +84,6 @@ class MainActivity : AppCompatActivity(),
             )
             .withListener(this)
         dexter.check()
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (activeFragment == 0) {
-            if (backPressed)
-                finishAffinity()
-            else {
-                backPressed = true
-                val toastText = "Press back again for exit"
-                Toast.makeText(this, toastText, Toast.LENGTH_SHORT).show()
-            }
-        }
-        if (activeFragment > 0) {
-            FragmentChanger.changeFragment(supportFragmentManager, 0)
-        }
     }
 
     override fun onPermissionsChecked(p0: MultiplePermissionsReport?) {

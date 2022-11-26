@@ -34,7 +34,7 @@ class FileManager(
             .map(pattern::matcher)
             .filter(Matcher::find)
             .map { m -> Integer.valueOf(m.group(1)) }
-            .mapToInt { it -> it }
+            .mapToInt { it }
             .max()
         val nextNum = if (!maxPathFinder.isPresent) 1 else maxPathFinder.asInt + 1
         return try {

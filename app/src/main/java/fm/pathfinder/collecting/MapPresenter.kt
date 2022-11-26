@@ -22,7 +22,6 @@ class MapPresenter(
     }
 
     private lateinit var wifiProcessor: WifiProcessor
-    private lateinit var sensorsProcessor: SensorsProcessor
     private lateinit var gpsProcessor: GpsService
     private var scanningOn = false
     private val samplingPeriod = SensorManager.SENSOR_DELAY_GAME
@@ -31,22 +30,26 @@ class MapPresenter(
 
     init {
         try {
-            gpsProcessor = GpsService(mapsFragment, locationCollector)
+            gpsProcessor = GpsService(context, mapsFragment::logIt, locationCollector)
             val mSensorManager =
                 context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             val accelerationProcessor =
-                OrientationProcessor(mapsFragment.context, locationCollector::angleChange)
+                OrientationProcessor(context, locationCollector::angleChange)
             listOf(Sensor.TYPE_ROTATION_VECTOR).forEach {
                 val sensor = mSensorManager.getDefaultSensor(it)
                 mSensorManager.registerListener(accelerationProcessor, sensor, samplingPeriod)
             }
             val velocityProcessor =
-                VelocityProcessor(mapsFragment.context, locationCollector::distance, accelerationProcessor::getVelocityOrientationMatrix)
+                VelocityProcessor(
+                    context,
+                    locationCollector::distance,
+                    accelerationProcessor::getVelocityOrientationMatrix
+                )
             listOf(Sensor.TYPE_LINEAR_ACCELERATION, Sensor.TYPE_ACCELEROMETER).forEach {
                 val sensor = mSensorManager.getDefaultSensor(it)
                 mSensorManager.registerListener(velocityProcessor, sensor, samplingPeriod)
             }
-            wifiProcessor = WifiProcessor(mapsFragment, locationCollector)
+            wifiProcessor = WifiProcessor(context, locationCollector)
         } catch (e: SecurityException) {
             Log.e(TAG, "SECURITY, NO WIFI WILL BE AVAILABLE")
             e.printStackTrace()
@@ -62,21 +65,18 @@ class MapPresenter(
 
     fun stopScan() {
         scanningOn = false
-        val ctx = mapsFragment.context?.applicationContext
-        if (ctx != null) {
-            FileManager(ctx = ctx).storeBuildingToFile(locationCollector.extractData())
-            Toast.makeText(mapsFragment.context, "Saving building data", Toast.LENGTH_SHORT).show()
-        }
+        FileManager(context).storeBuildingToFile(locationCollector.extractData())
+        Toast.makeText(context, "Saving building data", Toast.LENGTH_SHORT).show()
     }
 
     fun newRoom(roomName: String) {
         locationCollector.enterNewRoom(roomName)
-        Toast.makeText(mapsFragment.context, "New Room enter $roomName", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "New Room enter $roomName", Toast.LENGTH_SHORT).show()
     }
 
     fun exitRoom() {
         val roomName = locationCollector.exitRoom()
-        Toast.makeText(mapsFragment.context, "Room exited $roomName", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Room exited $roomName", Toast.LENGTH_SHORT).show()
     }
 
 

@@ -21,13 +21,12 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 class WifiProcessor(
-    private val mapsFragment: MapsFragment,
+    private val mContext: Context,
     private val locationCollector: LocationCollector
 ) : BroadcastReceiver() {
     private var rttSupport = false
     private var scanningOn = false
     private lateinit var mWifiManager: WifiManager
-    private val mContext = mapsFragment.context
 
     private var mBackgroundExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor()
@@ -44,7 +43,7 @@ class WifiProcessor(
     }
 
     private fun initRtt() {
-        if (mContext?.packageManager?.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT) != true) {
+        if (mContext.packageManager?.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT) != true) {
             Toast.makeText(mContext, "WIFI RTT IS NOT SUPPORTED ON THIS PHONE!", Toast.LENGTH_LONG)
                 .show()
             Log.i("RTT", "WIFI RTT is NOT supported!")
@@ -72,10 +71,10 @@ class WifiProcessor(
 
     private fun initWifiRequests() {
         val intentFilter = IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
-        if (mContext?.packageManager?.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT) == true) {
+        if (mContext.packageManager?.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT) == true) {
             intentFilter.addAction(WifiRttManager.ACTION_WIFI_RTT_STATE_CHANGED)
         }
-        mWifiManager = mContext?.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        mWifiManager = mContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         mContext.registerReceiver(this, intentFilter)
 
         if (!mWifiManager.isWifiEnabled) {
@@ -131,19 +130,18 @@ class WifiProcessor(
         if (!rttSupport)
             return
         val mgr =
-            mapsFragment.context?.getSystemService(Context.WIFI_RTT_RANGING_SERVICE) as WifiRttManager
+            mContext.getSystemService(Context.WIFI_RTT_RANGING_SERVICE) as WifiRttManager
 
-        var request: RangingRequest
-        if (apsToRange.size >= RangingRequest.getMaxPeers()) {
-            request = RangingRequest.Builder()
+        val request = if (apsToRange.size >= RangingRequest.getMaxPeers()) {
+            RangingRequest.Builder()
                 .addAccessPoints(apsToRange.subList(0, RangingRequest.getMaxPeers() - 1)).build()
-        } else{
-            request = RangingRequest.Builder().addAccessPoints(apsToRange).build()
+        } else {
+            RangingRequest.Builder().addAccessPoints(apsToRange).build()
         }
         mgr.startRanging(
             request,
-            mapsFragment.requireContext().mainExecutor,
-            WifiRangeCallback(mapsFragment)
+            mContext.mainExecutor,
+            WifiRangeCallback()
         )
     }
 
