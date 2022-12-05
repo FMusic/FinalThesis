@@ -5,13 +5,9 @@ import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.util.Log
 import android.widget.Toast
-import com.google.gson.GsonBuilder
-import fm.pathfinder.MainActivity
-import fm.pathfinder.conf.LocalDateTimeSerializer
 import fm.pathfinder.collecting.wifi.WifiProcessor
 import fm.pathfinder.data.FileManager
 import fm.pathfinder.fragments.MapsFragment
-import java.time.LocalDateTime
 
 class MapPresenter(
     private val mapsFragment: MapsFragment,

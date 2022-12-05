@@ -1,4 +1,4 @@
-package fm.pathfinder.conf
+package fm.pathfinder.utils
 
 import com.google.gson.*
 import java.lang.reflect.Type

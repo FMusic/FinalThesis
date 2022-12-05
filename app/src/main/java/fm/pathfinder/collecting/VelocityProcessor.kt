@@ -6,6 +6,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.opengl.Matrix.multiplyMV
 import android.util.Log
+import fm.pathfinder.utils.LimitedSizeQueue
 import java.util.*
 import java.util.stream.Collectors
 import kotlin.math.pow
@@ -40,17 +41,6 @@ class VelocityProcessor(
         }
     }
 
-    class LimitedSizeQueue<K>(private val maxSize: Int) : ArrayList<K>() {
-        override fun add(element: K): Boolean {
-            val r = super.add(element)
-            if (size > maxSize) {
-                removeRange(0, size - maxSize)
-            }
-            return r
-        }
-
-        val isFull = size >= maxSize
-    }
 
     private val NUMBER_OF_NEC_VALUES = 5
     private val eventValuesX = LimitedSizeQueue<Float>(NUMBER_OF_NEC_VALUES)
@@ -67,22 +57,21 @@ class VelocityProcessor(
         eventValuesY.add(eventValues[1])
         eventValuesZ.add(eventValues[2])
         if (!eventValuesX.isEmpty()) {
-            val avgX =
-                eventValuesX.stream().collect(Collectors.averagingDouble { it.toDouble() })
-            val avgY =
-                eventValuesY.stream().collect(Collectors.averagingDouble { it.toDouble() })
-            val avgZ =
-                eventValuesZ.stream().collect(Collectors.averagingDouble { it.toDouble() })
+            val avgX = eventValuesX.average()
+            val avgY = eventValuesY.average()
+            val avgZ = eventValuesZ.average()
             val xSign = avgX > 0
             val ySign = avgY > 0
             val motion = sqrt(avgX.pow(2) + avgY.pow(2))
             if (motion > 0.1) {
                 val speedInM = motion.times(localPeriod)
                 val distanceInM = speedInM.times(localPeriod)
-                Log.i( "Velocity", "Motion: $motion, " +
-                       "Period: $localPeriod, " +
-                       "Speed: $speedInM, " +
-                       "Distance: $distanceInM" )
+                Log.d(
+                    "Velocity", "Motion: $motion, " +
+                            "Period: $localPeriod, " +
+                            "Speed: $speedInM, " +
+                            "Distance: $distanceInM"
+                )
                 if (distanceInM < 20) {
                     collector(distanceInM)
                 }

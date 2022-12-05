@@ -93,7 +93,6 @@ class LocationCollector(
     fun angleChange(degrees: Float) {
         if (abs(degrees - directionDegrees) > 30) {
             directionDegrees = degrees
-//            logFunc("New degrees: $directionDegrees\n")
         }
         if (scanning) {
             currentSpot.movementDirection = degrees
@@ -105,12 +104,12 @@ class LocationCollector(
     }
 
     fun distance(distance: Double) {
-        Log.i(
-            TAG, "SPOT: dist: ${currentSpot.distance} angle: ${currentSpot.movementDirection} " +
-                    "wifis: ${if (currentSpot.wifiList.isNotEmpty()) "FULL" else "EMPTY"}"
-        )
-        logFunc("Distance: ${currentSpot.distance}, Angle: ${currentSpot.movementDirection}\n")
         if (scanning) {
+            Log.i(
+                TAG, "SPOT: dist: ${currentSpot.distance} angle: ${currentSpot.movementDirection} " +
+                        "wifis: ${if (currentSpot.wifiList.isNotEmpty()) "FULL" else "EMPTY"}"
+            )
+            logFunc("Distance: ${currentSpot.distance}, Angle: ${currentSpot.movementDirection}\n")
             currentRoom.listOfSpots.add(currentSpot)
             distanceSum += distance
             currentSpot = Spot(distanceSum)

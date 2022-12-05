@@ -4,11 +4,10 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
-import fm.pathfinder.conf.LocalDateTimeDeserializer
-import fm.pathfinder.conf.LocalDateTimeSerializer
+import fm.pathfinder.utils.LocalDateTimeDeserializer
+import fm.pathfinder.utils.LocalDateTimeSerializer
 import fm.pathfinder.model.Room
 import java.io.File
-import java.lang.reflect.Type
 import java.time.LocalDateTime
 import java.util.regex.Matcher
 import java.util.regex.Pattern
