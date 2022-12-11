@@ -3,11 +3,10 @@ package fm.pathfinder.model
 import java.time.LocalDateTime
 
 class Spot(
-    val distance: Double
+    val distance: Double,
+    val movementDirection: Float,
+    val wifiList: ArrayList<WifiScanResult>
 ) {
     private val logTimestamp: LocalDateTime = LocalDateTime.now()
-    val wifiList: ArrayList<WifiScanResult> = ArrayList()
     lateinit var gpsLocation: GpsLocation
-    var movementDirection: Float = 0.0F
-
 }

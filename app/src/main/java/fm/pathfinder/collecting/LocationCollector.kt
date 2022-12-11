@@ -26,7 +26,9 @@ class LocationCollector(
     private var directionDegrees = 0F
     private var distanceSum = 0.0
 
-    private var currentSpot: Spot = Spot(0.0)
+    private var movementDirection: Float = 0F
+    private var lastWifisScanned = ArrayList<WifiScanResult>()
+    private var currentSpot: Spot = Spot(0.0, movementDirection, lastWifisScanned)
 
 
     init {
@@ -84,35 +86,38 @@ class LocationCollector(
         }
         Log.i(TAG, "WIFI Results are here")
         allWifiRouters.addAll(wifiScanResFinal)
-        if (scanning) {
-            currentSpot.wifiList.addAll(wifiScanResults)
-        }
+        lastWifisScanned = wifiScanResults
         return wifiScanResFinal
     }
 
     fun angleChange(degrees: Float) {
         if (abs(degrees - directionDegrees) > 30) {
             directionDegrees = degrees
-        }
-        if (scanning) {
-            currentSpot.movementDirection = degrees
+            movementDirection = degrees
         }
     }
 
     fun startScan() {
         scanning = true
+        distanceSum = 0.0
     }
 
     fun distance(distance: Double) {
+        Log.i(
+            TAG,
+            "SPOT: dist: ${currentSpot.distance} angle: ${currentSpot.movementDirection} " +
+                    "wifis: ${if (currentSpot.wifiList.isNotEmpty()) "FULL" else "EMPTY"}"
+        )
+        logFunc("Distance: ${currentSpot.distance}, Angle: ${currentSpot.movementDirection}\n")
+        distanceSum += distance
         if (scanning) {
-            Log.i(
-                TAG, "SPOT: dist: ${currentSpot.distance} angle: ${currentSpot.movementDirection} " +
-                        "wifis: ${if (currentSpot.wifiList.isNotEmpty()) "FULL" else "EMPTY"}"
-            )
-            logFunc("Distance: ${currentSpot.distance}, Angle: ${currentSpot.movementDirection}\n")
             currentRoom.listOfSpots.add(currentSpot)
-            distanceSum += distance
-            currentSpot = Spot(distanceSum)
+            currentSpot = Spot(
+                distance = distanceSum,
+                movementDirection = movementDirection,
+                wifiList = lastWifisScanned
+            )
+            lastWifisScanned = ArrayList()
         }
     }
 
