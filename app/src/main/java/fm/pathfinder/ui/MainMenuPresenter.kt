@@ -1,10 +1,10 @@
-package fm.pathfinder.fragments
+package fm.pathfinder.ui
 
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import fm.pathfinder.R
 
-class FragmentChanger {
+class MainMenuPresenter {
     companion object {
         /**
          * @param fragmentManager - fragment manager that changes fragment
@@ -24,14 +24,16 @@ class FragmentChanger {
                         )
                     }
                     1 -> {
-                        replace(R.id.fragment_container, MapsFragment.newInstance())
+                        replace(R.id.fragment_container, MapFragment.newInstance())
                     }
                     2 -> {
                         replace(R.id.fragment_container, DataStorageFragment.newInstance())
                     }
                     3->{
                         if (buildingName != "")
-                        replace(R.id.fragment_container, NavigationFragment.newInstance(buildingName))
+                        replace(R.id.fragment_container,
+                            NavigationFragment.newInstance(buildingName)
+                        )
                         else throw java.lang.Exception("Building name is empty")
                     }
                 }

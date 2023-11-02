@@ -1,10 +1,8 @@
-package fm.pathfinder.navigation
+package fm.pathfinder.ui
 
 import android.content.Context
-import fm.pathfinder.data.FileManager
 import fm.pathfinder.model.MapLine
 import fm.pathfinder.model.Room
-import fm.pathfinder.model.Spot
 import kotlin.math.absoluteValue
 import kotlin.math.cos
 import kotlin.math.sin
@@ -14,7 +12,7 @@ class NavigationPresenter(buildingName: String, ctx: Context) {
     private val buildingData: ArrayList<Room>
 
     init {
-        buildingData = FileManager(ctx).loadDataFromFile(buildingName) as ArrayList<Room>
+        buildingData = DataStoragePresenter(ctx).loadDataFromFile(buildingName) as ArrayList<Room>
         originalMap = parseOut(buildingData)
     }
 

@@ -16,6 +16,9 @@ class LimitedSizeQueue<K : Number>(val maxSize: Int) : ArrayList<K>() {
 
     private fun spaceLeft() = this.maxSize - this.size
 
+    fun isFull(): Boolean = spaceLeft() <= 0
+
+
     fun average(): Double {
         return this.stream().collect(Collectors.averagingDouble { it.toDouble() })
     }

@@ -1,4 +1,4 @@
-package fm.pathfinder.fragments
+package fm.pathfinder.ui
 
 import android.app.AlertDialog
 import android.net.wifi.rtt.RangingResult
@@ -15,11 +15,10 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
-import fm.pathfinder.MainActivity
 import fm.pathfinder.R
-import fm.pathfinder.collecting.MapPresenter
+import fm.pathfinder.utils.InputDialogFragment
 
-class MapsFragment : Fragment() {
+class MapFragment : Fragment() {
 
     /**
      * tutorial used: https://www.thecrazyprogrammer.com/2017/01/how-to-get-current-location-in-android.html
@@ -27,7 +26,13 @@ class MapsFragment : Fragment() {
     private lateinit var mapFragment: SupportMapFragment
     private lateinit var currentLocation: LatLng
     private lateinit var mapPresenter: MapPresenter
+
     private lateinit var tvLogger: TextView
+    private lateinit var btnStartScan: Button
+    private lateinit var btnStopScan: Button
+    private lateinit var btnNewRoom: Button
+    private lateinit var btnExitRoom: Button
+
     private val textForLog = StringBuilder()
 
     private val callback = OnMapReadyCallback { googleMap ->
@@ -40,7 +45,7 @@ class MapsFragment : Fragment() {
     companion object {
         @JvmStatic
         fun newInstance() =
-            MapsFragment().apply {
+            MapFragment().apply {
             }
     }
 
@@ -62,10 +67,10 @@ class MapsFragment : Fragment() {
         mapFragment = (childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?)!!
 
 
-        val btnStartScan = view.findViewById<Button>(R.id.btnStartScan)
-        val btnStopScan = view.findViewById<Button>(R.id.btnStopScan)
-        val btnNewRoom = view.findViewById<Button>(R.id.btnNewRoom)
-        val btnExitRoom = view.findViewById<Button>(R.id.btnExitRoom)
+        btnStartScan = view.findViewById(R.id.btnStartScan)
+        btnStopScan = view.findViewById(R.id.btnStopScan)
+        btnNewRoom = view.findViewById(R.id.btnNewRoom)
+        btnExitRoom = view.findViewById(R.id.btnExitRoom)
         tvLogger = view.findViewById(R.id.tvLog)
 
         btnStartScan.setOnClickListener {
@@ -76,10 +81,7 @@ class MapsFragment : Fragment() {
         }
 
         btnStopScan.setOnClickListener {
-            mapPresenter.stopScan()
-            btnStartScan.visibility = View.VISIBLE
-            btnStopScan.visibility = View.INVISIBLE
-            btnNewRoom.visibility = View.INVISIBLE
+            showBuildingNameInputAndStopScan()
         }
 
         btnNewRoom.setOnClickListener {
@@ -93,6 +95,17 @@ class MapsFragment : Fragment() {
             btnExitRoom.visibility = View.INVISIBLE
             mapPresenter.exitRoom()
         }
+    }
+
+    private fun showBuildingNameInputAndStopScan() {
+        val inputDialog = InputDialogFragment().setTitle("Enter Building Name");
+        inputDialog.setOnInputCompleteListener {
+            mapPresenter.stopScan(it)
+            btnStartScan.visibility = View.VISIBLE
+            btnStopScan.visibility = View.INVISIBLE
+            btnNewRoom.visibility = View.INVISIBLE
+        }
+        inputDialog.show(childFragmentManager, "Input Dialog")
     }
 
     private fun alerterNewRoom() {

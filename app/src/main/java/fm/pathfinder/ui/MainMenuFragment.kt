@@ -1,4 +1,4 @@
-package fm.pathfinder.fragments
+package fm.pathfinder.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import android.widget.Button
 import androidx.fragment.app.Fragment
 import fm.pathfinder.R
-import fm.pathfinder.MainActivity
 
 class MainMenuFragment : Fragment(R.layout.fragment_main_menu) {
 
@@ -28,9 +27,9 @@ class MainMenuFragment : Fragment(R.layout.fragment_main_menu) {
         val btnOpenData = v.findViewById<Button>(R.id.btnOpenData)
 
         btnStartScan.setOnClickListener {
-            FragmentChanger.changeFragment(parentFragmentManager, 1)
+            MainMenuPresenter.changeFragment(parentFragmentManager, 1)
         }
-        btnOpenData.setOnClickListener { FragmentChanger.changeFragment(parentFragmentManager, 2) }
+        btnOpenData.setOnClickListener { MainMenuPresenter.changeFragment(parentFragmentManager, 2) }
 
         return v
     }

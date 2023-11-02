@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    tools:context=".fragments.MainMenuFragment">
+    tools:context=".ui.MainMenuFragment">
 
     <Button
         android:layout_width="match_parent"

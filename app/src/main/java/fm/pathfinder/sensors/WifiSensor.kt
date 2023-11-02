@@ -1,4 +1,4 @@
-package fm.pathfinder.collecting.wifi
+package fm.pathfinder.sensors
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
@@ -9,20 +9,20 @@ import android.content.pm.PackageManager
 import android.net.wifi.ScanResult
 import android.net.wifi.WifiManager
 import android.net.wifi.rtt.RangingRequest
+import android.net.wifi.rtt.RangingResult
+import android.net.wifi.rtt.RangingResultCallback
 import android.net.wifi.rtt.WifiRttManager
 import android.util.Log
 import android.widget.Toast
-import fm.pathfinder.Constants
-import fm.pathfinder.collecting.LocationCollector
-import fm.pathfinder.fragments.MapsFragment
-import fm.pathfinder.exceptions.WifiException
+import fm.pathfinder.utils.Constants
+import fm.pathfinder.utils.WifiException
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
-class WifiProcessor(
+class WifiSensor(
     private val mContext: Context,
-    private val locationCollector: LocationCollector
+    private val locationScanner: LocationScanner
 ) : BroadcastReceiver() {
     private var rttSupport = false
     private var scanningOn = false
@@ -103,7 +103,7 @@ class WifiProcessor(
                     // add wifi spots returns newly discovered wifi routers
                     // for which rtt should be initialized
                     initNewRangingRequest(
-                        locationCollector.addWifiSpots(mWifiManager.scanResults)
+                        locationScanner.addWifiSpots(mWifiManager.scanResults)
                     )
                 }
                 false -> {
@@ -112,7 +112,7 @@ class WifiProcessor(
                         Constants.SLEEP_NOSCAN_TIME_MS,
                         TimeUnit.MILLISECONDS
                     )
-                    locationCollector.addWifiSpots(mWifiManager.scanResults)
+                    locationScanner.addWifiSpots(mWifiManager.scanResults)
                 }
             }
         }
@@ -120,8 +120,8 @@ class WifiProcessor(
 
     fun startScan() {
         mWifiManager.startScan()
-        if (locationCollector.allWifiRouters.isNotEmpty()) {
-            initNewRangingRequest(locationCollector.allWifiRouters)
+        if (locationScanner.allWifiRouters.isNotEmpty()) {
+            initNewRangingRequest(locationScanner.allWifiRouters)
         }
     }
 
@@ -147,6 +147,26 @@ class WifiProcessor(
 
     companion object {
         private const val TAG: String = "WifiProcessor"
+    }
+
+    class WifiRangeCallback : RangingResultCallback() {
+        override fun onRangingFailure(code: Int) {
+            Log.e("rtt", "code of ranging failure: $code")
+        }
+
+        override fun onRangingResults(results: MutableList<RangingResult>) {
+            results.forEach {
+                // filtering results:
+                // https://developer.android.com/reference/android/net/wifi/rtt/RangingResult#constants_1
+                if (it.status != 0) {
+                    Log.i("rtt", "status of failing rtt result: ${it.status}")
+                    return
+                }
+                Log.i("rtt", it.toString())
+            }
+        }
+
+
     }
 
 }

@@ -1,4 +1,4 @@
-package fm.pathfinder
+package fm.pathfinder.utils
 
 class Constants {
     companion object {

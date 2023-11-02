@@ -1,4 +1,4 @@
-package fm.pathfinder.collecting
+package fm.pathfinder.sensors
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -6,15 +6,13 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.util.Log
-import com.google.android.gms.maps.model.LatLng
-import fm.pathfinder.Constants
-import fm.pathfinder.fragments.MapsFragment
+import fm.pathfinder.utils.Constants
 
 @SuppressLint("MissingPermission")
-class GpsService(
+class GpsSensor(
     context: Context,
     private val logFunc: (String) -> Unit,
-    private val locationCollector: LocationCollector
+    private val locationScanner: LocationScanner
 ) : LocationListener {
 
     init {
@@ -31,7 +29,7 @@ class GpsService(
     override fun onLocationChanged(location: Location) {
         Log.i(TAG, "Location/GPS: $location")
         logFunc("GPS: ${location.longitude}, ${location.latitude}")
-        locationCollector.addLocation(location)
+        locationScanner.addLocation(location)
     }
 
     companion object  {

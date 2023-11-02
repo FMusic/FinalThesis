@@ -1,14 +1,13 @@
-package fm.pathfinder.fragments
+package fm.pathfinder.ui
 
 import android.graphics.Color
 import android.graphics.Paint
 import android.os.Bundle
 import android.view.*
 import androidx.fragment.app.Fragment
-import fm.pathfinder.Constants
+import fm.pathfinder.utils.Constants
 import fm.pathfinder.R
 import fm.pathfinder.model.MapLine
-import fm.pathfinder.navigation.NavigationPresenter
 
 
 /**

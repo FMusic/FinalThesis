@@ -9,4 +9,12 @@
     <string name="exit_room">exit room</string>
     <string name="list_of_available_buildings">List of available buildings:</string>
     <string name="example_value">Example Value</string>
+    <string name="cardinal_direction_north">North</string>
+    <string name="cardinal_direction_northeast">Northeast</string>
+    <string name="cardinal_direction_east">East</string>
+    <string name="cardinal_direction_southeast">Southeast</string>
+    <string name="cardinal_direction_south">South</string>
+    <string name="cardinal_direction_southwest">Southwest</string>
+    <string name="cardinal_direction_west">West</string>
+    <string name="cardinal_direction_northwest">Northwest</string>
 </resources>

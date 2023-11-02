@@ -2,21 +2,20 @@ package fm.pathfinder
 
 import android.app.Activity
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.FragmentTransaction
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
-import fm.pathfinder.fragments.*
+import fm.pathfinder.utils.Constants
+import fm.pathfinder.ui.MainMenuPresenter
+import fm.pathfinder.ui.MainMenuFragment
 import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity(),
@@ -44,12 +43,12 @@ class MainActivity : AppCompatActivity(),
                     }
                 }
                 else {
-                    FragmentChanger.changeFragment(supportFragmentManager, 0)
+                    MainMenuPresenter.changeFragment(supportFragmentManager, 0)
                 }
             }
 
         })
-        FragmentChanger.changeFragment(supportFragmentManager, 0)
+        MainMenuPresenter.changeFragment(supportFragmentManager, 0)
         if (!permissionsGranted)
             if (Build.VERSION.SDK_INT >= 33)
                 askForPermissions()

@@ -1,4 +1,4 @@
-package fm.pathfinder.fragments
+package fm.pathfinder.ui
 
 import android.content.Context
 import android.os.Bundle
@@ -6,23 +6,16 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import android.widget.Toast
 import fm.pathfinder.R
-import fm.pathfinder.data.FileManager
 
 class DataStorageFragment : Fragment() {
     private lateinit var dataFiles: List<String>
 
     private lateinit var listView: ListView
-    private lateinit var fileManager : FileManager
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-    }
-
+    private lateinit var dataStoragePresenter : DataStoragePresenter
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -35,9 +28,9 @@ class DataStorageFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        fileManager = FileManager(activity as Context)
+        dataStoragePresenter = DataStoragePresenter(activity as Context)
 
-            dataFiles = fileManager.loadAllDataFiles()
+            dataFiles = dataStoragePresenter.loadAllDataFiles()
             if (this::dataFiles.isInitialized) {
                 val itemsAdapter =
                     ArrayAdapter(activity as Context, R.layout.simplest_list_el, dataFiles)
@@ -54,7 +47,7 @@ class DataStorageFragment : Fragment() {
     }
 
     private fun openNavigationForFile(filename: String) {
-        FragmentChanger.changeFragment(parentFragmentManager, 3, filename)
+        MainMenuPresenter.changeFragment(parentFragmentManager, 3, filename)
     }
 
     companion object {

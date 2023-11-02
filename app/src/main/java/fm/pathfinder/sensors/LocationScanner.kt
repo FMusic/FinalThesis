@@ -1,5 +1,6 @@
-package fm.pathfinder.collecting
+package fm.pathfinder.sensors
 
+import android.content.Context
 import android.location.Location
 import android.net.wifi.ScanResult
 import android.util.Log
@@ -10,12 +11,10 @@ import fm.pathfinder.model.WifiScanResult
 import java.time.LocalDateTime
 import kotlin.math.abs
 
-class LocationCollector(
-    private val logFunc: (String) -> Unit
+class LocationScanner(
+    private val context: Context
 ) {
     private var scanning = false
-    private val locations = ArrayList<GpsLocation>()
-    private val rooms = HashSet<Room>()
     private val uniqueWifiRouters = HashSet<String>()
     val allWifiRouters = ArrayList<ScanResult>()
     private val locationsByRoom = HashMap<Room, ArrayList<Location>>()
