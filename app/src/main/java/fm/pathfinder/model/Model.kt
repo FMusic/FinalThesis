@@ -1,15 +1,16 @@
 package fm.pathfinder.model
 
 import java.time.LocalDateTime
+import kotlin.math.sqrt
 
-data class Coordinate (
-    val latitude: Double,
-    val longitude: Double,
-    val altitude: Double
+data class Vector(
+    val distance: Float,
+    val direction: Float,
+    var wifiScanResults: ArrayList<WifiScanResult> = ArrayList(),
 )
 
-data class CoordinateRoom(
-    val coordinates: ArrayList<Coordinate>,
+data class VectorRoom(
+    val vectors: ArrayList<Vector>,
     val roomName: String
 )
 
@@ -44,11 +45,13 @@ class Spot(
     lateinit var gpsLocation: GpsLocation
 }
 
-class WifiRouter(val ssid: String,
-                 val bssid: String) {
+class WifiRouter(
+    val ssid: String,
+    val bssid: String
+) {
 
     override fun equals(other: Any?): Boolean {
-        if (other is WifiRouter){
+        if (other is WifiRouter) {
             val oth = other as WifiRouter
             return oth.ssid == this.ssid && oth.bssid == this.bssid
         }
@@ -64,3 +67,13 @@ class WifiScanResult(
     val timestamp: Long,
     val logTimestamp: LocalDateTime
 )
+
+
+data class Acceleration(
+    val x: Float,
+    val y: Float,
+    val z: Float
+) {
+    fun norm() = sqrt((x * x + y * y + z * z).toDouble()).toFloat()
+}
+

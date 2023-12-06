@@ -1,6 +1,7 @@
 package fm.pathfinder.ui
 
 import android.app.AlertDialog
+import android.graphics.Color
 import android.net.wifi.rtt.RangingResult
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -10,6 +11,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import com.github.mikephil.charting.charts.LineChart
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
@@ -17,12 +19,10 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import fm.pathfinder.R
 import fm.pathfinder.utils.InputDialogFragment
-
+/**
+ * tutorial used: https://www.thecrazyprogrammer.com/2017/01/how-to-get-current-location-in-android.html
+ */
 class MapFragment : Fragment() {
-
-    /**
-     * tutorial used: https://www.thecrazyprogrammer.com/2017/01/how-to-get-current-location-in-android.html
-     */
     private lateinit var mapFragment: SupportMapFragment
     private lateinit var currentLocation: LatLng
     private lateinit var mapPresenter: MapPresenter
@@ -32,6 +32,8 @@ class MapFragment : Fragment() {
     private lateinit var btnStopScan: Button
     private lateinit var btnNewRoom: Button
     private lateinit var btnExitRoom: Button
+
+    lateinit var lineChart: LineChart
 
     private val textForLog = StringBuilder()
 
@@ -60,18 +62,21 @@ class MapFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         mapPresenter = MapPresenter(this, requireContext())
+        mapPresenter.setLineChart()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         mapFragment = (childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?)!!
 
-
         btnStartScan = view.findViewById(R.id.btnStartScan)
         btnStopScan = view.findViewById(R.id.btnStopScan)
         btnNewRoom = view.findViewById(R.id.btnNewRoom)
         btnExitRoom = view.findViewById(R.id.btnExitRoom)
         tvLogger = view.findViewById(R.id.tvLog)
+
+        lineChart = view.findViewById(R.id.lineChart)
+        lineChart.setBackgroundColor(Color.BLACK)
 
         btnStartScan.setOnClickListener {
             mapPresenter.startScan()
@@ -98,7 +103,7 @@ class MapFragment : Fragment() {
     }
 
     private fun showBuildingNameInputAndStopScan() {
-        val inputDialog = InputDialogFragment().setTitle("Enter Building Name");
+        val inputDialog = InputDialogFragment().setTitle("Enter Building Name")
         inputDialog.setOnInputCompleteListener {
             mapPresenter.stopScan(it)
             btnStartScan.visibility = View.VISIBLE
@@ -140,6 +145,7 @@ class MapFragment : Fragment() {
 
     private fun addTextToTvLog(txt: String) {
         textForLog.append(txt)
+        textForLog.appendLine()
         if (textForLog.lines().size > 15) {
             textForLog.delete(0, textForLog.indexOf("\n") + 1)
             textForLog.capacity()

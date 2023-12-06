@@ -64,6 +64,7 @@ class MainActivity : AppCompatActivity(),
                 android.Manifest.permission.ACCESS_WIFI_STATE,
                 android.Manifest.permission.CHANGE_WIFI_STATE,
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                android.Manifest.permission.HIGH_SAMPLING_RATE_SENSORS,
             )
             .withListener(this)
         dexter.check()
@@ -80,6 +81,7 @@ class MainActivity : AppCompatActivity(),
                 android.Manifest.permission.CHANGE_WIFI_STATE,
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 android.Manifest.permission.NEARBY_WIFI_DEVICES,
+                android.Manifest.permission.HIGH_SAMPLING_RATE_SENSORS,
             )
             .withListener(this)
         dexter.check()

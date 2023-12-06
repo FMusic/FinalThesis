@@ -8,7 +8,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class NavigationPresenter(buildingName: String, ctx: Context) {
-    var originalMap: ArrayList<MapLine> = ArrayList()
+    private var originalMap: ArrayList<MapLine> = ArrayList()
     private val buildingData: ArrayList<Room>
 
     init {

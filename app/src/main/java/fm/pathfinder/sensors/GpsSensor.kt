@@ -6,14 +6,17 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.util.Log
+import fm.pathfinder.model.GpsLocation
+import fm.pathfinder.utils.Building
 import fm.pathfinder.utils.Constants
+import java.time.LocalDateTime
 
 @SuppressLint("MissingPermission")
 class GpsSensor(
     context: Context,
-    private val logFunc: (String) -> Unit,
-    private val locationScanner: LocationScanner
+    building: Building
 ) : LocationListener {
+    private var lastTimestamp: Long = 0
 
     init {
         val locationManager =
@@ -27,12 +30,22 @@ class GpsSensor(
     }
 
     override fun onLocationChanged(location: Location) {
+        lastTimestamp = location.elapsedRealtimeNanos
         Log.i(TAG, "Location/GPS: $location")
-        logFunc("GPS: ${location.longitude}, ${location.latitude}")
-        locationScanner.addLocation(location)
+        val gpsLocation = GpsLocation(
+            location.latitude,
+            location.longitude,
+            location.altitude,
+            location.accuracy,
+            location.time,
+            LocalDateTime.now()
+        )
     }
 
     companion object  {
-        const val TAG = "GPService"
+        const val TAG = "GPSLocation"
     }
+
+
+
 }

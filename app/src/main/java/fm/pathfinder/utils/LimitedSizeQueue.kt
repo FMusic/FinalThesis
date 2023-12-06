@@ -1,11 +1,10 @@
 package fm.pathfinder.utils
 
-import android.util.Log
 import java.util.ArrayList
 import java.util.stream.Collectors
 import kotlin.math.absoluteValue
 
-class LimitedSizeQueue<K : Number>(val maxSize: Int) : ArrayList<K>() {
+class LimitedSizeQueue<K : Number>(private val maxSize: Int) : ArrayList<K>() {
     override fun add(element: K): Boolean {
         val r = super.add(element)
         if (spaceLeft() < 0) {

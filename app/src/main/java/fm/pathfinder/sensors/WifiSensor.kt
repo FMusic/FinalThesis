@@ -22,9 +22,12 @@ import java.util.concurrent.TimeUnit
 
 class WifiSensor(
     private val mContext: Context,
-    private val locationScanner: LocationScanner
+    private val sensorCollector: SensorCollector
 ) : BroadcastReceiver() {
+    private var lastTimestamp: Long = 0
+
     private var rttSupport = false
+    private val rttScan = false
     private var scanningOn = false
     private lateinit var mWifiManager: WifiManager
 
@@ -38,7 +41,6 @@ class WifiSensor(
         } catch (e: SecurityException) {
             Log.e(TAG, "SECURITY, NO WIFI WILL BE AVAILABLE")
             e.printStackTrace()
-
         }
     }
 
@@ -51,22 +53,6 @@ class WifiSensor(
         }
         Log.i("RTT", "Wifi RTT should work")
         rttSupport = true
-
-        //        TODO: register a broadcast receiver to receive state changed
-/*
-        val filter = IntentFilter(WifiRttManager.ACTION_WIFI_RTT_STATE_CHANGED)
-        val myReceiver = object: BroadcastReceiver() {
-
-            override fun onReceive(context: Context, intent: Intent) {
-                if (wifiRttManager.isAvailable) {
-                    …
-                } else {
-                    …
-                }
-            }
-        }
-        context.registerReceiver(myReceiver, filter)
-*/
     }
 
     private fun initWifiRequests() {
@@ -91,67 +77,53 @@ class WifiSensor(
 
     @SuppressLint("MissingPermission")
     override fun onReceive(context: Context?, intent: Intent) {
-        if (intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)) {
+        if (!intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)) {
+            return
+        }
+        when (scanningOn) {
+            true -> {
+                lastTimestamp = System.currentTimeMillis()
+                mBackgroundExecutor.schedule(
+                    { startScan() },
+                    Constants.SLEEP_TIME_MS,
+                    TimeUnit.MILLISECONDS
+                )
+                initNewRangingRequest(mWifiManager.scanResults)
+            }
 
-            when (scanningOn) {
-                true -> {
-                    mBackgroundExecutor.schedule(
-                        { startScan() },
-                        Constants.SLEEP_TIME_MS,
-                        TimeUnit.MILLISECONDS
-                    )
-                    // add wifi spots returns newly discovered wifi routers
-                    // for which rtt should be initialized
-                    initNewRangingRequest(
-                        locationScanner.addWifiSpots(mWifiManager.scanResults)
-                    )
-                }
-                false -> {
-                    mBackgroundExecutor.schedule(
-                        { startScan() },
-                        Constants.SLEEP_NOSCAN_TIME_MS,
-                        TimeUnit.MILLISECONDS
-                    )
-                    locationScanner.addWifiSpots(mWifiManager.scanResults)
-                }
+            false -> {
+                mBackgroundExecutor.schedule(
+                    { startScan() },
+                    Constants.SLEEP_NOSCAN_TIME_MS,
+                    TimeUnit.MILLISECONDS
+                )
             }
         }
     }
 
-    fun startScan() {
-        mWifiManager.startScan()
-        if (locationScanner.allWifiRouters.isNotEmpty()) {
-            initNewRangingRequest(locationScanner.allWifiRouters)
-        }
-    }
+    fun startScan() = mWifiManager.startScan()
 
     @SuppressLint("MissingPermission")
     private fun initNewRangingRequest(apsToRange: List<ScanResult>) {
-        if (!rttSupport)
+        if (!rttSupport && !rttScan)
             return
-        val mgr =
-            mContext.getSystemService(Context.WIFI_RTT_RANGING_SERVICE) as WifiRttManager
-
+        val mgr = mContext.getSystemService(Context.WIFI_RTT_RANGING_SERVICE) as WifiRttManager
         val request = if (apsToRange.size >= RangingRequest.getMaxPeers()) {
             RangingRequest.Builder()
                 .addAccessPoints(apsToRange.subList(0, RangingRequest.getMaxPeers() - 1)).build()
         } else {
             RangingRequest.Builder().addAccessPoints(apsToRange).build()
         }
-        mgr.startRanging(
-            request,
-            mContext.mainExecutor,
-            WifiRangeCallback()
-        )
+        mgr.startRanging(request, mContext.mainExecutor, WifiRangeCallback())
     }
 
     companion object {
-        private const val TAG: String = "WifiProcessor"
+        private const val TAG: String = "WIFI_SENSOR"
     }
 
     class WifiRangeCallback : RangingResultCallback() {
         override fun onRangingFailure(code: Int) {
-            Log.e("rtt", "code of ranging failure: $code")
+            Log.e(TAG, "Code of ranging failure: $code")
         }
 
         override fun onRangingResults(results: MutableList<RangingResult>) {
@@ -159,10 +131,10 @@ class WifiSensor(
                 // filtering results:
                 // https://developer.android.com/reference/android/net/wifi/rtt/RangingResult#constants_1
                 if (it.status != 0) {
-                    Log.i("rtt", "status of failing rtt result: ${it.status}")
+                    Log.i(TAG, "status of failing ${it.rssi} rtt result: ${it.status}")
                     return
                 }
-                Log.i("rtt", it.toString())
+                Log.i(TAG, it.toString())
             }
         }
 

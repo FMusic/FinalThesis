@@ -57,7 +57,6 @@ class Azimuth(_degrees: Float) {
 }
 
 private data class SemiClosedFloatRange(val fromInclusive: Float, val toExclusive: Float)
-
 private operator fun SemiClosedFloatRange.contains(value: Float) = fromInclusive <= value && value < toExclusive
 private infix fun Float.until(to: Float) = SemiClosedFloatRange(this, to)
 
