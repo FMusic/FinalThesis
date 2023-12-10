@@ -80,4 +80,8 @@ class MapPresenter(
         mapFragment.logIt("New step: $distance")
     }
 
+    fun orientation(orientation: Float) {
+        mapFragment.tvOrientation.text = orientation.toString()
+    }
+
 }

@@ -34,6 +34,7 @@ class MapFragment : Fragment() {
     private lateinit var btnExitRoom: Button
 
     lateinit var lineChart: LineChart
+    lateinit var tvOrientation: TextView
 
     private val textForLog = StringBuilder()
 
@@ -74,6 +75,7 @@ class MapFragment : Fragment() {
         btnNewRoom = view.findViewById(R.id.btnNewRoom)
         btnExitRoom = view.findViewById(R.id.btnExitRoom)
         tvLogger = view.findViewById(R.id.tvLog)
+        tvOrientation = view.findViewById(R.id.tvOrientation)
 
         lineChart = view.findViewById(R.id.lineChart)
         lineChart.setBackgroundColor(Color.BLACK)
@@ -127,7 +129,7 @@ class MapFragment : Fragment() {
             dialog.dismiss()
             mapPresenter.newRoom(input.text.toString())
         }
-        builder.setNegativeButton(android.R.string.cancel) { dialog, which ->
+        builder.setNegativeButton(android.R.string.cancel) { dialog, _ ->
             dialog.cancel()
         }
         builder.show()

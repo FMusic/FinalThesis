@@ -42,6 +42,7 @@ class SensorCollector(
     fun collectAzimuth(azimuth: Azimuth) {
         if (scanningOn) {
             lastAzimuth = azimuth.degrees
+            mapPresenter.orientation(azimuth.degrees)
         }
     }
 
