@@ -1,4 +1,4 @@
-package fm.pathfinder.fragments
+package fm.pathfinder.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -7,19 +7,13 @@ import android.view.ViewGroup
 import android.widget.Button
 import androidx.fragment.app.Fragment
 import fm.pathfinder.R
-import fm.pathfinder.MainActivity
 
 class MainMenuFragment : Fragment(R.layout.fragment_main_menu) {
-    /**
-     * fragment changer is main activity which handles all fragment changes
-     */
-    lateinit var fragmentChanger: FragmentChangeListener
 
     companion object {
         @JvmStatic
-        fun newInstance(mainActivity: MainActivity) =
+        fun newInstance() =
             MainMenuFragment().apply {
-                fragmentChanger = mainActivity
             }
     }
 
@@ -32,8 +26,10 @@ class MainMenuFragment : Fragment(R.layout.fragment_main_menu) {
         val btnStartScan = v.findViewById<Button>(R.id.btnOpenMap)
         val btnOpenData = v.findViewById<Button>(R.id.btnOpenData)
 
-        btnStartScan.setOnClickListener { fragmentChanger.changeFragment(1) }
-        btnOpenData.setOnClickListener { fragmentChanger.changeFragment(2) }
+        btnStartScan.setOnClickListener {
+            MainMenuPresenter.changeFragment(parentFragmentManager, 1)
+        }
+        btnOpenData.setOnClickListener { MainMenuPresenter.changeFragment(parentFragmentManager, 2) }
 
         return v
     }
