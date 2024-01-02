@@ -35,12 +35,17 @@ class AccelerationSensor(
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
             Sensor.TYPE_ACCELEROMETER -> {
+                notifyNewAccelerometerReading(event.values)
                 val x = event.values[0]
                 val y = event.values[1]
                 val z = event.values[2]
                 registerAcceleration(x, y, z)
             }
         }
+    }
+
+    private fun notifyNewAccelerometerReading(values: FloatArray?) {
+        sensorCollector.collectAccelerometer(values)
     }
 
     private fun registerAcceleration(x: Float, y: Float, z: Float) {
@@ -58,7 +63,10 @@ class AccelerationSensor(
         Log.d("Acceleration", "Raw Values: X: $x Y: $y Z: $z")
         Log.d(
             "Acceleration",
-            "Calibration values: X: ${calibrationQueueX.average()} Y: ${calibrationQueueY.average()} Z: ${calibrationQueueZ.average()}"
+            "Calibration values: " +
+                    "X: ${calibrationQueueX.average()} " +
+                    "Y: ${calibrationQueueY.average()} " +
+                    "Z: ${calibrationQueueZ.average()}"
         )
         if (calibrationQueueX.isFull()) {
             return acceleration(x, y, z)
@@ -72,7 +80,10 @@ class AccelerationSensor(
                 Toast.makeText(context, "Still Calibration Finished", Toast.LENGTH_SHORT).show()
                 Log.i(
                     "Acceleration",
-                    "Calibration Values: X: ${calibrationQueueX.average()} Y: ${calibrationQueueY.average()} Z: ${calibrationQueueZ.average()}"
+                    "Calibration Values: " +
+                            "X: ${calibrationQueueX.average()} " +
+                            "Y: ${calibrationQueueY.average()} " +
+                            "Z: ${calibrationQueueZ.average()}"
                 )
                 Log.i(
                     "Acceleration",
@@ -94,22 +105,12 @@ class AccelerationSensor(
     private var lowerThreshold = 0.0
 
     private fun acceleration(x: Float, y: Float, z: Float): Acceleration? {
-        if (calibrationQueueX.average().absoluteValue > x.absoluteValue ||
-            calibrationQueueY.average().absoluteValue > y.absoluteValue ||
-            calibrationQueueZ.average().absoluteValue > z.absoluteValue
-        ) {
-            Log.e(
-                "Acceleration",
-                "Calibration values are greater than the acceleration values, object is not moving"
-            )
-            return null
-        }
         val calibratedX =
             x.absoluteValue - calibrationQueueX.average().absoluteValue
         val calibratedY =
-             y.absoluteValue - calibrationQueueY.average().absoluteValue
+            y.absoluteValue - calibrationQueueY.average().absoluteValue
         val calibratedZ =
-             z.absoluteValue - calibrationQueueZ.average().absoluteValue
+            z.absoluteValue - calibrationQueueZ.average().absoluteValue
         val calibratedAcceleration =
             Acceleration(calibratedX.toFloat(), calibratedY.toFloat(), calibratedZ.toFloat())
         if (calibratedAcceleration.norm() < lowerThreshold) {
@@ -118,7 +119,6 @@ class AccelerationSensor(
         }
         Log.d("Acceleration", "Calibrated Values: X: $calibratedX Y: $calibratedY Z: $calibratedZ")
         return calibratedAcceleration
-
     }
 
     companion object {

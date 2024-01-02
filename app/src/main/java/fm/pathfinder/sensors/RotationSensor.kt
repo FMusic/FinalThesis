@@ -13,8 +13,7 @@ class RotationSensor(
     private val context: Context,
     private val sensorCollector: SensorCollector
 ) : SensorEventListener {
-    private val velocityOrientationMatrixInverted = FloatArray(16)
-    private val rotationMatrix = FloatArray(9)
+    private val rotationMatrix = FloatArray(ROTATION_MATRIX_SIZE)
     private var lastTimestamp: Long = 0
     private var lastAzimuth: Float = 0f
 
@@ -32,15 +31,21 @@ class RotationSensor(
         when (event.sensor.type) {
             Sensor.TYPE_ROTATION_VECTOR -> {
                 lastTimestamp = event.timestamp
-                val azimuth = calculateAzimuth(event.values)
-                notifyNewAzimuth(azimuth.degrees)
+                notifyNewMagenetometer(event.values)
+
+//                val azimuth = calculateAzimuth(event.values)
+//                notifyNewAzimuth(azimuth.degrees)
             }
         }
     }
 
+    private fun notifyNewMagenetometer(values: FloatArray) {
+        sensorCollector.collectMagnetometer(values)
+    }
+
     private fun notifyNewAzimuth(degrees: Float) {
         val delta = degrees - lastAzimuth
-        if (abs(delta) > 5.0f) {
+        if (abs(delta) > MINIMUM_AZIMUTH_DELTA) {
             lastAzimuth = degrees
             sensorCollector.collectAzimuth(Azimuth(degrees))
         }
@@ -70,19 +75,23 @@ class RotationSensor(
             else -> remapRotationMatrix(rotationMatrix, SensorManager.AXIS_X, SensorManager.AXIS_Y)
         }
         val orientationInRadians =
-            SensorManager.getOrientation(remappedRotationMatrix, FloatArray(3))
+            SensorManager.getOrientation(remappedRotationMatrix, FloatArray(ORIENTATION_MATRIX_SIZE))
         return Azimuth(Math.toDegrees(orientationInRadians[0].toDouble()).toFloat())
 
     }
 
     private fun remapRotationMatrix(rotationMatrix: FloatArray, newX: Int, newY: Int): FloatArray {
-        val remappedRotationMatrix = FloatArray(9)
+        val remappedRotationMatrix = FloatArray(REMAPPED_MATRIX_SIZE)
         SensorManager.remapCoordinateSystem(rotationMatrix, newX, newY, remappedRotationMatrix)
         return remappedRotationMatrix
     }
 
     companion object {
         const val TAG = "Rotation"
+        const val REMAPPED_MATRIX_SIZE = 9
+        const val ROTATION_MATRIX_SIZE = 9
+        const val ORIENTATION_MATRIX_SIZE = 3
+        const val MINIMUM_AZIMUTH_DELTA = 5.0f
     }
 
 

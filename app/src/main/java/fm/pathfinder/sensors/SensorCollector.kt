@@ -14,7 +14,6 @@ class SensorCollector(
     private val building: Building,
     private val mapPresenter: MapPresenter
 ) {
-    private var lastAzimuth: Float = 0f
     private lateinit var wifiSensor: WifiSensor
     private lateinit var gpsProcessor: GpsSensor
     private lateinit var rotationSensor: RotationSensor
@@ -25,11 +24,19 @@ class SensorCollector(
     private var timestampBegin: Long = 0
     private var maxAcceleration = Acceleration(0f, 0f, 0f)
 
+    private var lastAzimuth: Float = 0f
+    private var lastAccelerometerReading: FloatArray? = null
+    private var lastMagnetometerReading: FloatArray? = null
+
     private fun initSensors() {
 //        gpsProcessor = GpsSensor(context, building)
         rotationSensor = RotationSensor(context, this)
         accelerationSensor = AccelerationSensor(context, this)
         wifiSensor = WifiSensor(context, this)
+
+        lastAzimuth = 0f
+        lastAccelerometerReading = null
+        lastMagnetometerReading = null
     }
 
     fun setScan(scanning: Boolean) {
@@ -50,7 +57,7 @@ class SensorCollector(
 
     fun collectAcceleration(acceleration: Acceleration) {
         building.addAcceleration(acceleration.norm(), lastAzimuth)
-        if (scanningOn && acceleration.norm() > 0.5f) {
+        if (scanningOn && acceleration.norm() > MINIMUM_ACCELERATION_DELTA) {
             Log.i(TAG, "AccelerationNorm: ${acceleration.norm()}")
             if (lastAcceleration == null) {
                 lastAcceleration = acceleration
@@ -81,15 +88,41 @@ class SensorCollector(
         val time = (System.currentTimeMillis() - timestampBegin).toFloat()
         val speed =
             (maxAcceleration.norm() / 2) * time.pow(2)
-        val direction = lastAzimuth
         val distance = speed * time
         maxAcceleration = Acceleration(0f, 0f, 0f)
-        Log.i(TAG, "Step: $distance, $direction")
+        Log.i(TAG, "Step: $distance, $lastAzimuth")
         mapPresenter.newStep(distance)
+    }
+
+    fun collectMagnetometer(values: FloatArray) {
+        lastMagnetometerReading = values
+        computeOrientation()
+    }
+
+    fun collectAccelerometer(values: FloatArray?) {
+        lastAccelerometerReading = values
+    }
+
+    private fun computeOrientation() {
+        val rotationMatrix = FloatArray(9)
+        if (lastAccelerometerReading != null && lastMagnetometerReading != null) {
+            SensorManager.getRotationMatrix(
+                rotationMatrix,
+                null,
+                lastAccelerometerReading,
+                lastMagnetometerReading
+            )
+            val orientation = FloatArray(ORIENTATION_MATRIX_SIZE)
+            SensorManager.getOrientation(rotationMatrix, orientation)
+            val azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
+            collectAzimuth(Azimuth(azimuth))
+        }
     }
 
     companion object {
         const val TAG = "Location"
+        const val ORIENTATION_MATRIX_SIZE = 3
+        const val MINIMUM_ACCELERATION_DELTA = 0.5f
     }
 }
 
