@@ -35,17 +35,18 @@ class AccelerationSensor(
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
             Sensor.TYPE_ACCELEROMETER -> {
-                notifyNewAccelerometerReading(event.values)
                 val x = event.values[0]
                 val y = event.values[1]
                 val z = event.values[2]
+                notifyNewAccelerometerReading(x, y, z)
                 registerAcceleration(x, y, z)
             }
         }
     }
 
-    private fun notifyNewAccelerometerReading(values: FloatArray?) {
-        sensorCollector.collectAccelerometer(values)
+
+    private fun notifyNewAccelerometerReading(x: Float, y: Float, z: Float) {
+        sensorCollector.collectAccelerometer(x, y, z)
     }
 
     private fun registerAcceleration(x: Float, y: Float, z: Float) {

@@ -75,7 +75,10 @@ class RotationSensor(
             else -> remapRotationMatrix(rotationMatrix, SensorManager.AXIS_X, SensorManager.AXIS_Y)
         }
         val orientationInRadians =
-            SensorManager.getOrientation(remappedRotationMatrix, FloatArray(ORIENTATION_MATRIX_SIZE))
+            SensorManager.getOrientation(
+                remappedRotationMatrix,
+                FloatArray(ORIENTATION_MATRIX_SIZE)
+            )
         return Azimuth(Math.toDegrees(orientationInRadians[0].toDouble()).toFloat())
 
     }

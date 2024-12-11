@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
@@ -13,9 +14,9 @@ import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
-import fm.pathfinder.utils.Constants
-import fm.pathfinder.ui.MainMenuPresenter
 import fm.pathfinder.ui.MainMenuFragment
+import fm.pathfinder.ui.MainMenuPresenter
+import fm.pathfinder.utils.Constants
 import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity(),
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity(),
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        Log.i("MainActivity", "onCreate")
         onBackPressedDispatcher.addCallback(object: OnBackPressedCallback(true){
             override fun handleOnBackPressed() {
                 val fragment =

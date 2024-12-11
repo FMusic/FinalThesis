@@ -133,7 +133,6 @@ class MapFragment : Fragment() {
             dialog.cancel()
         }
         builder.show()
-
     }
 
     fun changeLocation(location: LatLng) {

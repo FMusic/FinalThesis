@@ -39,6 +39,11 @@ android {
         viewBinding true
     }
     namespace 'fm.pathfinder'
+    packaging {
+        resources {
+            excludes += ["META-INF/INDEX.LIST", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA"]
+        }
+    }
 }
 
 dependencies {
@@ -75,5 +80,9 @@ dependencies {
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.1'
     implementation 'androidx.test:monitor:1.6.1'
     implementation 'androidx.test.ext:junit-ktx:1.1.5'
+
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation("org.json:json:20230618")
+
 }
 
