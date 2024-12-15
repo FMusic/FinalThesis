@@ -13,10 +13,23 @@ import java.time.Instant
 data class ApiDataSingle(val x: Float, val y: Float, val z: Float, val timestamp: Instant)
 data class ApiData(val data: MutableList<ApiDataSingle>, val endpoint: String)
 
-class ApiHelper {
+class ApiHelper (
+    endpoint: String
+){
+    private val apiData = ApiData(mutableListOf(), endpoint)
+
+    private val MAX_SIZE_DATA = 200
 
     private val client = OkHttpClient()
     private val apiUrl = "http://192.168.0.14:3000" // Replace with your PostgREST API base URL
+
+    suspend fun addData(x: Float, y: Float, z: Float) {
+        if (apiData.data.size >= MAX_SIZE_DATA) {
+            saveData(apiData)
+            apiData.data.clear()
+        }
+        apiData.data.add(ApiDataSingle(x, y, z, Instant.now()))
+    }
 
     suspend fun saveData(apiData: ApiData) {
         withContext(Dispatchers.IO) { // Run on a background thread

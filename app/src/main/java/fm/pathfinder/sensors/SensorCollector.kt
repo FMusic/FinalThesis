@@ -3,8 +3,6 @@ package fm.pathfinder.sensors
 import android.content.Context
 import android.hardware.SensorManager
 import android.util.Log
-import fm.pathfinder.database.ApiData
-import fm.pathfinder.database.ApiDataSingle
 import fm.pathfinder.database.ApiHelper
 import fm.pathfinder.model.Acceleration
 import fm.pathfinder.model.Azimuth
@@ -13,7 +11,6 @@ import fm.pathfinder.utils.Building
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.time.Instant
 import kotlin.math.pow
 
 class SensorCollector(
@@ -21,7 +18,7 @@ class SensorCollector(
     private val building: Building,
     private val mapPresenter: MapPresenter
 ) {
-    private val LIST_SIZE = 20
+
     private lateinit var wifiSensor: WifiSensor
     private lateinit var gpsProcessor: GpsSensor
     private lateinit var rotationSensor: RotationSensor
@@ -36,9 +33,8 @@ class SensorCollector(
     private var lastAccelerometerReading: FloatArray? = null
     private var lastMagnetometerReading: FloatArray? = null
 
-    private val apiHelper = ApiHelper()
-    private var accelerationApi = ApiData(mutableListOf(), "/accelerationvalues")
-    private var orientationApi = ApiData(mutableListOf(), "/orientationvalues")
+    private val orientationApi = ApiHelper("/orientationvalues")
+    private val accelerationApi = ApiHelper("/accelerationvalues")
 
     private fun initSensors() {
 //        gpsProcessor = GpsSensor(context, building)
@@ -70,12 +66,8 @@ class SensorCollector(
     fun collectAcceleration(acceleration: Acceleration) {
         building.addAcceleration(acceleration.norm(), lastAzimuth)
         if (scanningOn && acceleration.norm() > MINIMUM_ACCELERATION_DELTA) {
-            accelerationApi.data.add(ApiDataSingle(acceleration.x, acceleration.y, acceleration.z, Instant.now()))
-            if (accelerationApi.data.size == LIST_SIZE) {
-                CoroutineScope(Dispatchers.Default).launch {
-                    apiHelper.saveData(accelerationApi)
-                    accelerationApi.data.clear()
-                }
+            CoroutineScope(Dispatchers.Default).launch {
+                accelerationApi.addData(acceleration.x, acceleration.y, acceleration.z)
             }
             Log.i(TAG, "AccelerationNorm: ${acceleration.norm()}")
             if (lastAcceleration == null) {
@@ -102,7 +94,6 @@ class SensorCollector(
         }
     }
 
-
     private fun addStep() {
         val time = (System.currentTimeMillis() - timestampBegin).toFloat()
         val speed =
@@ -115,12 +106,8 @@ class SensorCollector(
 
     fun collectMagnetometer(values: FloatArray) {
         lastMagnetometerReading = values
-        orientationApi.data.add(ApiDataSingle(values[0], values[1], values[2], Instant.now()))
-        if (orientationApi.data.size == LIST_SIZE) {
-            CoroutineScope(Dispatchers.Default).launch {
-                apiHelper.saveData(orientationApi)
-                orientationApi.data.clear()
-            }
+        CoroutineScope(Dispatchers.Default).launch {
+            orientationApi.addData(values[0], values[1], values[2])
         }
         computeOrientation()
     }
