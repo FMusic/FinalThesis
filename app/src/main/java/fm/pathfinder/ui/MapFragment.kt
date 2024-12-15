@@ -88,7 +88,11 @@ class MapFragment : Fragment() {
         }
 
         btnStopScan.setOnClickListener {
-            showBuildingNameInputAndStopScan()
+//            showBuildingNameInputAndStopScan()
+            mapPresenter.stopScan("pathfinder")
+            btnStartScan.visibility = View.VISIBLE
+            btnStopScan.visibility = View.INVISIBLE
+            btnNewRoom.visibility = View.INVISIBLE
         }
 
         btnNewRoom.setOnClickListener {

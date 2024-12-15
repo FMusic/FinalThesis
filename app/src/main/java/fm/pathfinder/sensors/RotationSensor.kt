@@ -31,16 +31,12 @@ class RotationSensor(
         when (event.sensor.type) {
             Sensor.TYPE_ROTATION_VECTOR -> {
                 lastTimestamp = event.timestamp
-                notifyNewMagenetometer(event.values)
+                sensorCollector.collectMagnetometer(event.values)
 
 //                val azimuth = calculateAzimuth(event.values)
 //                notifyNewAzimuth(azimuth.degrees)
             }
         }
-    }
-
-    private fun notifyNewMagenetometer(values: FloatArray) {
-        sensorCollector.collectMagnetometer(values)
     }
 
     private fun notifyNewAzimuth(degrees: Float) {

@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Scanner",
+      "Group": "ScannerGroup",
+      "Host": "postgres-container",
+      "Port": 5432,
+      "MaintenanceDB": "pathfinder",
+      "Username": "postgres",
+      "SSLMode": "prefer"
+    }
+  }
+}

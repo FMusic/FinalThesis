@@ -39,7 +39,7 @@ class MapPresenter(
         scanningOn = false
         sensorCollector.setScan(false)
         building.setScan(false)
-        DataStoragePresenter(context).storeBuildingToFile(building, filename)
+//        DataStoragePresenter(context).storeBuildingToFile(building, filename)
         Toast.makeText(context, "Saving building data", Toast.LENGTH_SHORT).show()
     }
 

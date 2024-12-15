@@ -18,10 +18,6 @@ class ApiHelper {
     private val client = OkHttpClient()
     private val apiUrl = "http://192.168.0.14:3000" // Replace with your PostgREST API base URL
 
-    private fun initializeConnection() {
-        // Optionally initialize any API-related resources or log the connection details.
-    }
-
     suspend fun saveData(apiData: ApiData) {
         withContext(Dispatchers.IO) { // Run on a background thread
             val jsonArray = JSONArray()
