@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS orientationValues (
     timestamp TIMESTAMP
 );
 
-create table if not exists calibratedAccelerationValues (
+create table if not exists accelerationFiltered (
     id serial primary key,
     x double precision,
     y double precision,
@@ -29,11 +29,23 @@ create table if not exists calibratedAccelerationValues (
     timestamp timestamp
 );
 
-create table if not exists calibratedOrientationValues (
+create table if not exists orientationFiltered (
     id serial primary key,
     x double precision,
     y double precision,
     z double precision,
+    timestamp timestamp
+);
+
+create table if not exists accelerationFiltered3d(
+    id serial primary key,
+    x double precision,
+    timestamp timestamp
+);
+
+create table if not exists orientationFiltered3d(
+    id serial primary key,
+    x double precision,
     timestamp timestamp
 );
 

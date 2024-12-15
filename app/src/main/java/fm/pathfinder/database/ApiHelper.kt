@@ -5,31 +5,18 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.Instant
 
-data class ApiDataSingle(val x: Float, val y: Float, val z: Float, val timestamp: Instant)
-data class ApiData(val data: MutableList<ApiDataSingle>, val endpoint: String)
+data class ApiDataSingle(val x: Float, val y: Float, val z: Float, val timestamp: Long)
+data class ApiData(val data: MutableList<ApiDataSingle>)
 
-class ApiHelper (
-    endpoint: String
-){
-    private val apiData = ApiData(mutableListOf(), endpoint)
-
-    private val MAX_SIZE_DATA = 200
-
+class ApiHelper(
+    private val endpoint: String
+) {
     private val client = OkHttpClient()
     private val apiUrl = "http://192.168.0.14:3000" // Replace with your PostgREST API base URL
-
-    suspend fun addData(x: Float, y: Float, z: Float) {
-        if (apiData.data.size >= MAX_SIZE_DATA) {
-            saveData(apiData)
-            apiData.data.clear()
-        }
-        apiData.data.add(ApiDataSingle(x, y, z, Instant.now()))
-    }
 
     suspend fun saveData(apiData: ApiData) {
         withContext(Dispatchers.IO) { // Run on a background thread
@@ -42,16 +29,14 @@ class ApiHelper (
                 jsonObject.put("timestamp", it.timestamp.toString())
                 jsonArray.put(jsonObject)
             }
-            postToApi(apiData.endpoint, jsonArray)
+            postToApi(jsonArray)
         }
     }
 
 
-    private fun postToApi(endpoint: String, jsonData: JSONArray) {
-        val requestBody = RequestBody.create(
-            "application/json".toMediaTypeOrNull(),
-            jsonData.toString()
-        )
+    private fun postToApi(jsonData: JSONArray) {
+        val requestBody = jsonData.toString()
+            .toRequestBody("application/json".toMediaTypeOrNull())
 
         val request = Request.Builder()
             .url("$apiUrl$endpoint")

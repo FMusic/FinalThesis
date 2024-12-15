@@ -3,7 +3,7 @@ package fm.pathfinder.utils
 import android.util.Log
 import fm.pathfinder.model.Vector
 import fm.pathfinder.model.VectorRoom
-import fm.pathfinder.sensors.SensorCollector
+import fm.pathfinder.sensor.SensorCollector
 
 class Building(
     private var buildingName: String = "Default"

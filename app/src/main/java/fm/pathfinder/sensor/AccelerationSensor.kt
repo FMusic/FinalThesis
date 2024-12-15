@@ -1,32 +1,40 @@
-﻿package fm.pathfinder.sensors
+﻿package fm.pathfinder.sensor
 
-import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.util.Log
-import android.widget.Toast
+import fm.pathfinder.database.ApiData
+import fm.pathfinder.database.ApiDataSingle
+import fm.pathfinder.database.ApiHelper
+import fm.pathfinder.filter.Kalman
+import fm.pathfinder.filter.Kalman3d
 import fm.pathfinder.model.Acceleration
 import fm.pathfinder.utils.LimitedSizeQueue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 import kotlin.math.sqrt
 
 class AccelerationSensor(
-    val context: Context,
     private val sensorCollector: SensorCollector
 ) : SensorEventListener {
     private val calibrationQueueX = LimitedSizeQueue<Float>(CALIBRATION_QUEUE_SIZE)
     private val calibrationQueueY = LimitedSizeQueue<Float>(CALIBRATION_QUEUE_SIZE)
     private val calibrationQueueZ = LimitedSizeQueue<Float>(CALIBRATION_QUEUE_SIZE)
 
-    init {
-        val mSensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val sensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-//        val sensor2 = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP)
-        mSensorManager.registerListener(this, sensor, sensorCollector.samplingPeriod)
-    }
+    private val kalmanX = Kalman()
+    private val kalmanY = Kalman()
+    private val kalmanZ = Kalman()
+    private val kalman3d = Kalman3d(0.1f, 0.1f, floatArrayOf(0f, 0f, 0f))
+
+    private val accelerationApi = ApiHelper("/accelerationvalues")
+    private var rawDataApi = ApiData(mutableListOf())
+    private var filteredDataApi = ApiData(mutableListOf())
+    private var filtered3dDataApi = ApiData(mutableListOf())
+    private val API_DATA_SIZE = 100
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         // We'll disregard this for now
@@ -35,32 +43,47 @@ class AccelerationSensor(
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
             Sensor.TYPE_ACCELEROMETER -> {
-                val x = event.values[0]
-                val y = event.values[1]
-                val z = event.values[2]
-                notifyNewAccelerometerReading(x, y, z)
-                registerAcceleration(x, y, z)
+                collectAcceleration(event.values, event.timestamp)
             }
         }
     }
 
-
-    private fun notifyNewAccelerometerReading(x: Float, y: Float, z: Float) {
-        sensorCollector.collectAccelerometer(x, y, z)
-    }
-
-    private fun registerAcceleration(x: Float, y: Float, z: Float) {
-        val acceleration = newSensorValues(x, y, z)
-        if (acceleration != null) {
-            notifyNewAcceleration(acceleration)
+    private fun collectAcceleration(values: FloatArray?, timestamp: Long) {
+        if (values == null) {
+            return
+        }
+        sensorCollector.collectAccelerometer(values)
+//        sensorCollector.collectAcceleration(newSensorValues(x, y, z))
+        CoroutineScope(Dispatchers.Default).launch {
+            if (collectApiData(rawDataApi, values, timestamp) == 1) {
+                rawDataApi = ApiData(mutableListOf())
+            }
+            val filteredDataArray = floatArrayOf(
+                kalmanX.measure(values[0]),
+                kalmanY.measure(values[1]),
+                kalmanZ.measure(values[2])
+            )
+            if (collectApiData(filteredDataApi, filteredDataArray, timestamp) == 1) {
+                filteredDataApi = ApiData(mutableListOf())
+            }
+            val filteredVlaue3d = kalman3d.update(filteredDataArray)
+            if (collectApiData(filtered3dDataApi, filteredVlaue3d, timestamp) == 1) {
+                filtered3dDataApi = ApiData(mutableListOf())
+            }
         }
     }
 
-    private fun notifyNewAcceleration(acceleration: Acceleration) {
-        sensorCollector.collectAcceleration(acceleration)
+    private suspend fun collectApiData(apiData: ApiData, vals: FloatArray, timestamp: Long): Int {
+        apiData.data.add(ApiDataSingle(vals[0], vals[1], vals[2], timestamp))
+        if (apiData.data.size >= API_DATA_SIZE) {
+            accelerationApi.saveData(apiData)
+            return 1
+        }
+        return 0
     }
 
-    private fun newSensorValues(x: Float, y: Float, z: Float): Acceleration? {
+
+    private fun newSensorValues(x: Float, y: Float, z: Float): Acceleration {
         Log.d("Acceleration", "Raw Values: X: $x Y: $y Z: $z")
         Log.d(
             "Acceleration",
@@ -73,12 +96,8 @@ class AccelerationSensor(
             return acceleration(x, y, z)
         }
         when (calibrationQueueX.size) {
-            0 -> {
-                Toast.makeText(context, "Still Calibration Started", Toast.LENGTH_SHORT).show()
-            }
 
             CALIBRATION_QUEUE_SIZE - 1 -> {
-                Toast.makeText(context, "Still Calibration Finished", Toast.LENGTH_SHORT).show()
                 Log.i(
                     "Acceleration",
                     "Calibration Values: " +
@@ -100,12 +119,12 @@ class AccelerationSensor(
         calibrationQueueX.add(x.absoluteValue)
         calibrationQueueY.add(y.absoluteValue)
         calibrationQueueZ.add(z.absoluteValue)
-        return null
+        return Acceleration(0f, 0f, 0f)
     }
 
     private var lowerThreshold = 0.0
 
-    private fun acceleration(x: Float, y: Float, z: Float): Acceleration? {
+    private fun acceleration(x: Float, y: Float, z: Float): Acceleration {
         val calibratedX =
             x.absoluteValue - calibrationQueueX.average().absoluteValue
         val calibratedY =
@@ -116,7 +135,7 @@ class AccelerationSensor(
             Acceleration(calibratedX.toFloat(), calibratedY.toFloat(), calibratedZ.toFloat())
         if (calibratedAcceleration.norm() < lowerThreshold) {
             Log.e("Acceleration", "Acceleration is lower than the threshold, object is not moving")
-            return null
+            return Acceleration(0f, 0f, 0f)
         }
         Log.d("Acceleration", "Calibrated Values: X: $calibratedX Y: $calibratedY Z: $calibratedZ")
         return calibratedAcceleration

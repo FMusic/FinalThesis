@@ -1,16 +1,13 @@
-package fm.pathfinder.sensors
+package fm.pathfinder.sensor
 
 import android.content.Context
+import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.util.Log
-import fm.pathfinder.database.ApiHelper
 import fm.pathfinder.model.Acceleration
 import fm.pathfinder.model.Azimuth
 import fm.pathfinder.ui.MapPresenter
 import fm.pathfinder.utils.Building
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlin.math.pow
 
 class SensorCollector(
@@ -24,7 +21,7 @@ class SensorCollector(
     private lateinit var rotationSensor: RotationSensor
     private lateinit var accelerationSensor: AccelerationSensor
     private var scanningOn = false
-    val samplingPeriod = SensorManager.SENSOR_DELAY_UI
+    private val samplingPeriod = SensorManager.SENSOR_DELAY_UI
     private var lastAcceleration: Acceleration? = null
     private var timestampBegin: Long = 0
     private var maxAcceleration = Acceleration(0f, 0f, 0f)
@@ -33,14 +30,24 @@ class SensorCollector(
     private var lastAccelerometerReading: FloatArray? = null
     private var lastMagnetometerReading: FloatArray? = null
 
-    private val orientationApi = ApiHelper("/orientationvalues")
-    private val accelerationApi = ApiHelper("/accelerationvalues")
 
     private fun initSensors() {
 //        gpsProcessor = GpsSensor(context, building)
-        rotationSensor = RotationSensor(context, this)
-        accelerationSensor = AccelerationSensor(context, this)
-        wifiSensor = WifiSensor(context, this)
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+        rotationSensor = RotationSensor(this)
+        sensorManager.registerListener(rotationSensor,
+            sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
+            samplingPeriod)
+
+        accelerationSensor = AccelerationSensor(this)
+        sensorManager.registerListener(
+            accelerationSensor,
+            sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+            samplingPeriod
+        )
+
+//        wifiSensor = WifiSensor(context, this)
 
         lastAzimuth = 0f
         lastAccelerometerReading = null
@@ -66,9 +73,6 @@ class SensorCollector(
     fun collectAcceleration(acceleration: Acceleration) {
         building.addAcceleration(acceleration.norm(), lastAzimuth)
         if (scanningOn && acceleration.norm() > MINIMUM_ACCELERATION_DELTA) {
-            CoroutineScope(Dispatchers.Default).launch {
-                accelerationApi.addData(acceleration.x, acceleration.y, acceleration.z)
-            }
             Log.i(TAG, "AccelerationNorm: ${acceleration.norm()}")
             if (lastAcceleration == null) {
                 lastAcceleration = acceleration
@@ -106,14 +110,11 @@ class SensorCollector(
 
     fun collectMagnetometer(values: FloatArray) {
         lastMagnetometerReading = values
-        CoroutineScope(Dispatchers.Default).launch {
-            orientationApi.addData(values[0], values[1], values[2])
-        }
         computeOrientation()
     }
 
-    fun collectAccelerometer(x: Float, y: Float, z: Float) {
-        lastAccelerometerReading = floatArrayOf(x, y, z)
+    fun collectAccelerometer(values: FloatArray) {
+        lastAccelerometerReading = values
     }
 
     private fun computeOrientation() {

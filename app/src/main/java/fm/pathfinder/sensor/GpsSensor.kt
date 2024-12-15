@@ -1,4 +1,4 @@
-package fm.pathfinder.sensors
+package fm.pathfinder.sensor
 
 import android.annotation.SuppressLint
 import android.content.Context

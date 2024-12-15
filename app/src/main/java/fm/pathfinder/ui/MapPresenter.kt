@@ -8,7 +8,7 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import fm.pathfinder.model.Acceleration
 import fm.pathfinder.model.Vector
-import fm.pathfinder.sensors.SensorCollector
+import fm.pathfinder.sensor.SensorCollector
 import fm.pathfinder.utils.Building
 import fm.pathfinder.utils.LimitedSizeQueue
 

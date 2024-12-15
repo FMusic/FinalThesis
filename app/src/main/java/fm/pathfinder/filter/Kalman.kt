@@ -1,10 +1,8 @@
-package fm.pathfinder.utils
-
-import fm.pathfinder.model.Vector
+package fm.pathfinder.filter
 
 class Kalman(private val dimensions : Int = 3) {
 
-    fun measure(point: Vector): Vector {
+    fun measure(point: Float): Float {
         predict()
         return point
     }
