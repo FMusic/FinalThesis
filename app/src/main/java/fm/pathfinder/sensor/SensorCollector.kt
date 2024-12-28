@@ -8,6 +8,9 @@ import fm.pathfinder.model.Acceleration
 import fm.pathfinder.model.Azimuth
 import fm.pathfinder.ui.MapPresenter
 import fm.pathfinder.utils.Building
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.math.pow
 
 class SensorCollector(
@@ -35,20 +38,23 @@ class SensorCollector(
 //        gpsProcessor = GpsSensor(context, building)
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
+
         rotationSensor = RotationSensor(this)
-        sensorManager.registerListener(rotationSensor,
+        val checkOrientation = sensorManager.registerListener(
+            rotationSensor,
             sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
-            samplingPeriod)
+            samplingPeriod
+        )
 
         accelerationSensor = AccelerationSensor(this)
-        sensorManager.registerListener(
+        val accCheck = sensorManager.registerListener(
             accelerationSensor,
             sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
             samplingPeriod
         )
 
 //        wifiSensor = WifiSensor(context, this)
-
+        Log.i(TAG, "Sensors initialized: $checkOrientation, $accCheck")
         lastAzimuth = 0f
         lastAccelerometerReading = null
         lastMagnetometerReading = null
@@ -57,6 +63,14 @@ class SensorCollector(
     fun setScan(scanning: Boolean) {
         if (scanning) {
             initSensors()
+        } else {
+            val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+            sensorManager.unregisterListener(rotationSensor)
+            sensorManager.unregisterListener(accelerationSensor)
+            CoroutineScope(Dispatchers.Default).launch {
+                accelerationSensor.unregister()
+                rotationSensor.unregister()
+            }
         }
         scanningOn = scanning
     }

@@ -8,7 +8,7 @@ class Kalman3d (
     private var Q = 0f // Process noise covariance
     private var R = 0f // Measurement noise covariance
     private var X: FloatArray // Values (x, y, z)
-    private var P: FloatArray // Estimation error covariance for (x, y, z)
+    var P: FloatArray // Estimation error covariance for (x, y, z)
     private var K: FloatArray // Kalman gain for (x, y, z)
 
     init {
@@ -19,7 +19,9 @@ class Kalman3d (
         this.K = FloatArray(3)
 
         // Initialize values
-        System.arraycopy(initialValues, 0, this.X, 0, 3)
+        if (initialValues != null) {
+            System.arraycopy(initialValues, 0, this.X, 0, 3)
+        }
         P[2] = 1f
         P[1] = P[2]
         P[0] = P[1] // Initial estimation error

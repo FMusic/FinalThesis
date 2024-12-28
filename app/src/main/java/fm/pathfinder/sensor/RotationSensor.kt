@@ -3,12 +3,14 @@ package fm.pathfinder.sensor
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
-import fm.pathfinder.database.ApiData
-import fm.pathfinder.database.ApiDataSingle
-import fm.pathfinder.database.ApiHelper
+import android.hardware.SensorManager
+import android.util.Log
 import fm.pathfinder.filter.Kalman
 import fm.pathfinder.filter.Kalman3d
 import fm.pathfinder.model.Azimuth
+import fm.pathfinder.utils.API_ENDPOINTS
+import fm.pathfinder.utils.ApiData
+import fm.pathfinder.utils.ApiHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,11 +27,11 @@ class RotationSensor(
     private val kalmanZ = Kalman()
     private val kalman3d = Kalman3d(0.1f, 0.1f, floatArrayOf(0f, 0f, 0f))
 
-    private val orientationApi = ApiHelper("/orientationvalues")
+    private var beginTime = 0L
+
+    private val orientationApi = ApiHelper()
     private var rawDataApi = ApiData(mutableListOf())
-    private var filteredDataApi = ApiData(mutableListOf())
-    private var filtered3dDataApi = ApiData(mutableListOf())
-    private val API_DATA_SIZE = 100
+    private val API_DATA_SIZE = 300
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
 //        TODO: We'll disregard this for now
@@ -44,37 +46,79 @@ class RotationSensor(
     }
 
     private fun collectOrientation(values: FloatArray?, timestamp: Long) {
+        beginTime = if (beginTime != 0L) beginTime else timestamp
+        val ts = (timestamp - beginTime) / 1_000_000
         if (values == null) {
             return
         }
         sensorCollector.collectMagnetometer(values)
         sensorCollector.collectAzimuth(Azimuth(values[0]))
         CoroutineScope(Dispatchers.Default).launch {
-            if (collectApiData(rawDataApi, values, timestamp) == 1) {
-                rawDataApi = ApiData(mutableListOf())
-            }
-            val filteredDataArray = floatArrayOf(
-                kalmanX.measure(values[0]),
-                kalmanY.measure(values[1]),
-                kalmanZ.measure(values[2])
+            collectApiData(
+                floatArrayOf(
+                    values[0],
+                    values[1],
+                    values[2],
+                    values[3],
+                    getAzimuth(values)
+                ), ts
             )
-            if (collectApiData(filteredDataApi, filteredDataArray, timestamp) == 1) {
-                filteredDataApi = ApiData(mutableListOf())
-            }
-            val filteredValue3d = kalman3d.update(filteredDataArray)
-            if (collectApiData(filtered3dDataApi, filteredValue3d, timestamp) == 1) {
-                filtered3dDataApi = ApiData(mutableListOf())
-            }
         }
     }
 
-    private suspend fun collectApiData(apiData: ApiData, values: FloatArray, timestamp: Long): Int {
-        apiData.data.add(ApiDataSingle(values[0], values[1], values[2], timestamp))
-        if (apiData.data.size >= API_DATA_SIZE) {
-            orientationApi.saveData(apiData)
+    private fun getAzimuth(values: FloatArray): Float {
+        val rotationMatrix = FloatArray(9)
+        SensorManager.getRotationMatrixFromVector(rotationMatrix, values)
+
+        // Adjust rotation matrix based on device orientation if necessary
+        val adjustedRotationMatrix = FloatArray(9)
+        SensorManager.remapCoordinateSystem(
+            rotationMatrix,
+            SensorManager.AXIS_X,
+            SensorManager.AXIS_Y,
+            adjustedRotationMatrix
+        )
+
+        val orientation = FloatArray(3)
+        SensorManager.getOrientation(adjustedRotationMatrix, orientation)
+
+        // Convert azimuth from radians to degrees
+        val azimuthDegrees = Math.toDegrees(orientation[0].toDouble()).toFloat()
+        Log.d("Azimuth", "Azimuth in degrees: $azimuthDegrees")
+        return azimuthDegrees
+    }
+
+    private suspend fun collectApiData(
+        values: FloatArray?, timestamp: Long?
+    ): Int {
+        if (values == null || timestamp == null) {
+            sendDataToApi()
             return 1
         }
-        return 0
+        rawDataApi.data.add(
+            mapOf(
+                "x" to values[0],
+                "y" to values[1],
+                "z" to values[2],
+                "w" to values[3],
+                "azimuth" to values[4],
+                "timestamp" to timestamp
+            )
+        );
+        if (rawDataApi.data.size >= API_DATA_SIZE) {
+            sendDataToApi()
+            return 1
+        }
+        return 0;
+    }
+
+    private suspend fun sendDataToApi() {
+        orientationApi.saveData(rawDataApi.copy(), API_ENDPOINTS.ORIENTATION_VALUES)
+        rawDataApi = ApiData(mutableListOf())
+    }
+
+    suspend fun unregister() {
+        sendDataToApi()
     }
 
 //    private fun notifyNewAzimuth(degrees: Float) {

@@ -25,6 +25,7 @@ class DataStoragePresenter(
     fun storeBuildingToFile(buildingData: Any, buildingName: String = "pathfinder"): Boolean {
         val jsonBuilding = gson.toJson(buildingData)
 //        return storeDataToFile(jsonBuilding, buildingName)
+        return true
     }
 
     private fun storeDataToFile(stringToSave: String, filename: String): Boolean {

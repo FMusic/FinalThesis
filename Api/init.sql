@@ -10,7 +10,34 @@ CREATE TABLE IF NOT EXISTS accelerationValues (
     x DOUBLE PRECISION,
     y DOUBLE PRECISION,
     z DOUBLE PRECISION,
-    timestamp TIMESTAMP
+    normalization DOUBLE PRECISION,
+    timestamp BIGINT
+);
+
+create table if not exists accelerationFiltered (
+    id serial primary key,
+    predictionX double precision,
+    predictionY double precision,
+    predictionZ double precision,
+    filteredX double precision,
+    filteredY double precision,
+    filteredZ double precision,
+    normalizedPrediction DOUBLE PRECISION,
+    normalizedFiltered DOUBLE PRECISION,
+    timestamp BIGINT
+);
+
+create table if not exists accelerationFiltered3d(
+    id serial primary key,
+    predictionX double precision,
+    predictionY double precision,
+    predictionZ double precision,
+    filteredX double precision,
+    filteredY double precision,
+    filteredZ double precision,
+    normalizedPrediction DOUBLE PRECISION,
+    normalizedFiltered DOUBLE PRECISION,
+    timestamp BIGINT
 );
 
 CREATE TABLE IF NOT EXISTS orientationValues (
@@ -18,42 +45,17 @@ CREATE TABLE IF NOT EXISTS orientationValues (
     x DOUBLE PRECISION,
     y DOUBLE PRECISION,
     z DOUBLE PRECISION,
-    timestamp TIMESTAMP
-);
-
-create table if not exists accelerationFiltered (
-    id serial primary key,
-    x double precision,
-    y double precision,
-    z double precision,
-    timestamp timestamp
-);
-
-create table if not exists orientationFiltered (
-    id serial primary key,
-    x double precision,
-    y double precision,
-    z double precision,
-    timestamp timestamp
-);
-
-create table if not exists accelerationFiltered3d(
-    id serial primary key,
-    x double precision,
-    timestamp timestamp
-);
-
-create table if not exists orientationFiltered3d(
-    id serial primary key,
-    x double precision,
-    timestamp timestamp
+    w DOUBLE PRECISION,
+    azimuth DOUBLE PRECISION,
+    timestamp BIGINT
 );
 
 -- Grant SELECT, INSERT, UPDATE, and DELETE permissions on tables
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE accelerationValues TO public;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE accelerationFiltered TO public;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE accelerationFiltered3d TO public;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE orientationValues TO public;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE calibratedAccelerationValues TO public;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE calibratedOrientationValues TO public;
 
 -- Grant USAGE on the schema
 GRANT USAGE ON SCHEMA scanner TO public;
