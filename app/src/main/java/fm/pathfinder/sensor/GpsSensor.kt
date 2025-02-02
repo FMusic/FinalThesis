@@ -7,7 +7,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.util.Log
 import fm.pathfinder.model.GpsLocation
-import fm.pathfinder.utils.Building
+import fm.pathfinder.model.Building
 import fm.pathfinder.utils.Constants
 import java.time.LocalDateTime
 

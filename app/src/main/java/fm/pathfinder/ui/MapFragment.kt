@@ -70,8 +70,7 @@ class MapFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         mapFragment = (childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?)!!
 
-        btnStartScan = view.findViewById(R.id.btnStartScan)
-        btnStopScan = view.findViewById(R.id.btnStopScan)
+        setupButtons(view)
         btnNewRoom = view.findViewById(R.id.btnNewRoom)
         btnExitRoom = view.findViewById(R.id.btnExitRoom)
         tvLogger = view.findViewById(R.id.tvLog)
@@ -79,21 +78,6 @@ class MapFragment : Fragment() {
 
         lineChart = view.findViewById(R.id.lineChart)
         lineChart.setBackgroundColor(Color.BLACK)
-
-        btnStartScan.setOnClickListener {
-            mapPresenter.startScan()
-            btnStartScan.visibility = View.INVISIBLE
-            btnStopScan.visibility = View.VISIBLE
-            btnNewRoom.visibility = View.VISIBLE
-        }
-
-        btnStopScan.setOnClickListener {
-//            showBuildingNameInputAndStopScan()
-            mapPresenter.stopScan("pathfinder")
-            btnStartScan.visibility = View.VISIBLE
-            btnStopScan.visibility = View.INVISIBLE
-            btnNewRoom.visibility = View.INVISIBLE
-        }
 
         btnNewRoom.setOnClickListener {
             alerterNewRoom()
@@ -108,15 +92,42 @@ class MapFragment : Fragment() {
         }
     }
 
-    private fun showBuildingNameInputAndStopScan() {
-        val inputDialog = InputDialogFragment().setTitle("Enter Building Name")
-        inputDialog.setOnInputCompleteListener {
-            mapPresenter.stopScan(it)
-            btnStartScan.visibility = View.VISIBLE
-            btnStopScan.visibility = View.INVISIBLE
-            btnNewRoom.visibility = View.INVISIBLE
+    private fun setupButtons(view: View) {
+        startScanButton(view)
+        stopScanButton(view)
+    }
+
+
+    private fun startScanButton(view: View) {
+        btnStartScan = view.findViewById(R.id.btnStartScan)
+        btnStartScan.setOnClickListener {
+            mapPresenter.startScan()
+            btnStartScan.visibility = View.INVISIBLE
+            btnStopScan.visibility = View.VISIBLE
+            btnNewRoom.visibility = View.VISIBLE
         }
-        inputDialog.show(childFragmentManager, "Input Dialog")
+    }
+
+    private fun stopScanButton(view: View) {
+        btnStopScan = view.findViewById(R.id.btnStopScan)
+        btnStopScan.setOnClickListener {
+            stopScan("pathfinder")
+        }
+    }
+
+    private fun stopScan(buildingName: String? = null) {
+        if(buildingName != null) {
+            mapPresenter.stopScan(buildingName)
+        } else {
+            val inputDialog = InputDialogFragment().setTitle("Enter Building Name")
+            inputDialog.setOnInputCompleteListener {
+                mapPresenter.stopScan(it)
+                btnStartScan.visibility = View.VISIBLE
+                btnStopScan.visibility = View.INVISIBLE
+                btnNewRoom.visibility = View.INVISIBLE
+            }
+            inputDialog.show(childFragmentManager, "Input Dialog")
+        }
     }
 
     private fun alerterNewRoom() {

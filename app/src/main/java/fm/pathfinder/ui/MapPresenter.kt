@@ -9,7 +9,7 @@ import com.github.mikephil.charting.data.LineDataSet
 import fm.pathfinder.model.Acceleration
 import fm.pathfinder.model.Vector
 import fm.pathfinder.sensor.SensorCollector
-import fm.pathfinder.utils.Building
+import fm.pathfinder.model.Building
 import fm.pathfinder.utils.LimitedSizeQueue
 
 class MapPresenter(
@@ -28,7 +28,13 @@ class MapPresenter(
 
     init {
         building.subscribe(this)
+        sensorCollector.initializeSensors()
     }
+
+    fun startCalibration() {
+        sensorCollector.setCalibration(true)
+    }
+
     fun startScan() {
         scanningOn = true
         sensorCollector.setScan(true)

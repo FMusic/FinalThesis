@@ -2,149 +2,103 @@ package fm.pathfinder.sensor
 
 import android.content.Context
 import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.util.Log
-import fm.pathfinder.model.Acceleration
-import fm.pathfinder.model.Azimuth
+import fm.pathfinder.model.Building
+import fm.pathfinder.model.ErrorState
 import fm.pathfinder.ui.MapPresenter
-import fm.pathfinder.utils.Building
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlin.math.pow
+import fm.pathfinder.utils.AdaptiveKalmanFilter
+import fm.pathfinder.utils.Calibrator
+import fm.pathfinder.utils.ZUPTFilter
+import java.sql.Timestamp
 
 class SensorCollector(
     private val context: Context,
     private val building: Building,
     private val mapPresenter: MapPresenter
-) {
-
-    private lateinit var wifiSensor: WifiSensor
-    private lateinit var gpsProcessor: GpsSensor
-    private lateinit var rotationSensor: RotationSensor
-    private lateinit var accelerationSensor: AccelerationSensor
-    private var scanningOn = false
+) : SensorEventListener {
     private val samplingPeriod = SensorManager.SENSOR_DELAY_UI
-    private var lastAcceleration: Acceleration? = null
-    private var timestampBegin: Long = 0
-    private var maxAcceleration = Acceleration(0f, 0f, 0f)
+    private val calibrator = Calibrator()
 
-    private var lastAzimuth: Float = 0f
-    private var lastAccelerometerReading: FloatArray? = null
-    private var lastMagnetometerReading: FloatArray? = null
+    private var sensorsInitialized = false
+    private var calibrationMode = false
+    private var scanMode = false
 
+    private var startTimestamp = 0L
 
-    private fun initSensors() {
-//        gpsProcessor = GpsSensor(context, building)
+    private lateinit var kalmanFilter: AdaptiveKalmanFilter
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        when (event?.sensor?.type) {
+            Sensor.TYPE_ROTATION_VECTOR -> {
+                rotationValues(event.values, processTimestamp(event.timestamp))
+            }
+
+            Sensor.TYPE_ACCELEROMETER -> {
+                accelerationValues(event.values, processTimestamp(event.timestamp))
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        Log.i(TAG, "Accuracy changed")
+    }
+
+    fun initializeSensors() {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        var sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        val rotationInitialized = sensorManager.registerListener(this, sensor, samplingPeriod)
+        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val accelerationInitialized = sensorManager.registerListener(this, sensor, samplingPeriod)
+        sensorsInitialized = rotationInitialized && accelerationInitialized
+    }
 
-
-        rotationSensor = RotationSensor(this)
-        val checkOrientation = sensorManager.registerListener(
-            rotationSensor,
-            sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
-            samplingPeriod
-        )
-
-        accelerationSensor = AccelerationSensor(this)
-        val accCheck = sensorManager.registerListener(
-            accelerationSensor,
-            sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-            samplingPeriod
-        )
-
-//        wifiSensor = WifiSensor(context, this)
-        Log.i(TAG, "Sensors initialized: $checkOrientation, $accCheck")
-        lastAzimuth = 0f
-        lastAccelerometerReading = null
-        lastMagnetometerReading = null
+    fun setCalibration(value: Boolean) {
+        calibrationMode = value
+        if (!sensorsInitialized) {
+            initializeSensors()
+        }
     }
 
     fun setScan(scanning: Boolean) {
-        if (scanning) {
-            initSensors()
-        } else {
+        scanMode = scanning
+        if (!sensorsInitialized && scanning) {
+            initializeSensors()
+        }
+        if (!scanning) {
             val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-            sensorManager.unregisterListener(rotationSensor)
-            sensorManager.unregisterListener(accelerationSensor)
-            CoroutineScope(Dispatchers.Default).launch {
-                accelerationSensor.unregister()
-                rotationSensor.unregister()
-            }
-        }
-        scanningOn = scanning
-    }
-
-    fun collectAzimuth(azimuth: Azimuth) {
-        if (scanningOn) {
-            lastAzimuth = azimuth.degrees
-            mapPresenter.orientation(azimuth.degrees)
+            sensorManager.unregisterListener(this)
         }
     }
 
-    private var stepPauseCounter = 0
+    private fun rotationValues(values: FloatArray, timestamp: Long) {
+        if (!sensorsInitialized || !(calibrationMode && scanMode)) return
+    }
 
-    fun collectAcceleration(acceleration: Acceleration) {
-        building.addAcceleration(acceleration.norm(), lastAzimuth)
-        if (scanningOn && acceleration.norm() > MINIMUM_ACCELERATION_DELTA) {
-            Log.i(TAG, "AccelerationNorm: ${acceleration.norm()}")
-            if (lastAcceleration == null) {
-                lastAcceleration = acceleration
-                maxAcceleration = acceleration
-                timestampBegin = System.currentTimeMillis()
-                stepPauseCounter = 0
-            } else {
-                mapPresenter.acceleration(acceleration)
-//                kalman
-                val delta = acceleration.norm() - maxAcceleration.norm()
-                if (delta > 0f) {
-                    // val raste
-                    maxAcceleration = acceleration
-                } else {
-                    // val pada
-                    stepPauseCounter++
-                    if (stepPauseCounter == 1) {
-                        addStep()
-                        lastAcceleration = null
-                    }
-                }
+    private fun accelerationValues(values: FloatArray, timestamp: Long) {
+        if (!sensorsInitialized) return
+        else if (calibrationMode) {
+            val ts = Timestamp(timestamp)
+            calibrator.addAcceleration(values, ts)
+        } else if (scanMode) {
+            if (ZUPTFilter.detectZeroVelocity(values)) {
+                val currentErrorState = ErrorState()
+                kalmanFilter.updateErrorStateWithZUPT(
+                    currentErrorState,
+                    event.values,
+                    deltaTime
+                )
             }
         }
     }
 
-    private fun addStep() {
-        val time = (System.currentTimeMillis() - timestampBegin).toFloat()
-        val speed =
-            (maxAcceleration.norm() / 2) * time.pow(2)
-        val distance = speed * time
-        maxAcceleration = Acceleration(0f, 0f, 0f)
-        Log.i(TAG, "Step: $distance, $lastAzimuth")
-        mapPresenter.newStep(distance)
-    }
-
-    fun collectMagnetometer(values: FloatArray) {
-        lastMagnetometerReading = values
-        computeOrientation()
-    }
-
-    fun collectAccelerometer(values: FloatArray) {
-        lastAccelerometerReading = values
-    }
-
-    private fun computeOrientation() {
-        val rotationMatrix = FloatArray(9)
-        if (lastAccelerometerReading != null && lastMagnetometerReading != null) {
-            SensorManager.getRotationMatrix(
-                rotationMatrix,
-                null,
-                lastAccelerometerReading,
-                lastMagnetometerReading
-            )
-            val orientation = FloatArray(ORIENTATION_MATRIX_SIZE)
-            SensorManager.getOrientation(rotationMatrix, orientation)
-            val azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
-            collectAzimuth(Azimuth(azimuth))
+    private fun processTimestamp(timestamp: Long): Long {
+        if (startTimestamp == 0L) {
+            startTimestamp = timestamp
         }
+        return (timestamp - startTimestamp) / 1_000_000
     }
 
     companion object {

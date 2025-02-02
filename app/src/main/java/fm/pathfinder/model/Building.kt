@@ -1,8 +1,6 @@
-package fm.pathfinder.utils
+package fm.pathfinder.model
 
 import android.util.Log
-import fm.pathfinder.model.Vector
-import fm.pathfinder.model.VectorRoom
 import fm.pathfinder.sensor.SensorCollector
 
 class Building(
