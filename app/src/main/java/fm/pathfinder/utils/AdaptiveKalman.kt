@@ -9,11 +9,10 @@ import fm.pathfinder.utils.MathUtils.identityMatrix
 import fm.pathfinder.utils.MathUtils.invertMatrix
 import fm.pathfinder.utils.MathUtils.matrixMultiply
 import fm.pathfinder.utils.MathUtils.skewSymmetric
-import fm.pathfinder.utils.MathUtils.zeroMatrix
 import kotlin.math.pow
 
 class AdaptiveKalmanFilter(
-    strideLength: Float,
+    private val strideConstant: Float,
 ) {
     fun propagateErrorState(
         errorState: ErrorState,
@@ -26,60 +25,78 @@ class AdaptiveKalmanFilter(
         val skewSymmetricAcc = skewSymmetric(acceleration) // Returns a 3x3 matrix
 
         // Construct the state transition matrix (Φ) based on Equation (5)
-        val zero3x3 = zeroMatrix(3, 3) // 3x3 zero matrix
         val identity3x3 = identityMatrix(3) // 3x3 identity matrix
 
         val velocityToPosition =
             identity3x3.map { row -> row.map { it * deltaTime }.toFloatArray() }.toTypedArray()
-        val skewAccScaled =
-            skewSymmetricAcc.map { row -> row.map { it * deltaTime }.toFloatArray() }.toTypedArray()
 
-        // Construct the full state transition matrix with velocity-attitude coupling
-        val stateTransitionMatrix = arrayOf(
-            arrayOf(zero3x3, velocityToPosition, zero3x3),
-            arrayOf(zero3x3, zero3x3, skewAccScaled),
-            arrayOf(zero3x3, zero3x3, identity3x3)
-        ).flatMap { it.toList() }.toTypedArray().flatten().toTypedArray()
+        val phi = Array(9) { FloatArray(9) { 0f } }
+        for (r in 0..2) {
+            for (c in 0..2) {
+                phi[r][c] = 0f
+            }
+        }
+        for (r in 0..2) {
+            for (c in 0..2) {
+                phi[r][3 + c] = velocityToPosition[r][c]
+            }
+        }
+        for (r in 0..2) {
+            for (c in 0..2) {
+                phi[3 + r][6 + c] = skewSymmetricAcc[r][c]
+            }
+        }
+        for (r in 0..2) {
+            for (c in 0..2) {
+                phi[6 + r][6 + c] = identity3x3[r][c]
+            }
+        }
 
         // Convert ErrorState to vector
-        val errorStateVector = errorState.toVector()
+        val errorStateVector = errorState.toVector9x1()
 
         // Propagate the error state: δs = Φ * δs
         val propagatedErrorStateVector =
-            matrixMultiply(stateTransitionMatrix, errorStateVector).flatten2d()
+            matrixMultiply(phi, errorStateVector)
+        // 5) Build the 9×6 matrix G
+        val G = buildBiasInfluenceMatrix(attitudeMatrix)
 
-        // Bias influence: δs += Φ * bias * Δt
-        val biasEffectMatrix = arrayOf(
-            arrayOf(zero3x3, zero3x3),
-            arrayOf(
-                zero3x3,
-                matrixMultiply(attitudeMatrix, bias.accelerometerBias.toColumnMatrix())
-            ),
-            arrayOf(matrixMultiply(attitudeMatrix, bias.gyroscopeBias.toColumnMatrix()), zero3x3)
-        ).flatten()
-            .toTypedArray()
-            .flatten()
-            .toTypedArray()
+        // 6) Build the 6×1 bias vector
+        val bVec = bias.toVector6x1()
 
-        // Construct the bias vector (b_s)
-        val bs = arrayOf(
-            bias.accelerometerBias.toColumnMatrix(), // Accelerometer bias
-            bias.gyroscopeBias.toColumnMatrix() // Gyroscope bias
-        ).flatten()
-            .toTypedArray() // Combine into a single column vector
+        // 7) Compute G * b_s => 9×1
+        val Gbs = matrixMultiply(G, bVec)
 
-        val biasEffect = matrixMultiply(biasEffectMatrix, bs)
-            .flatMap { it.asList() }
-            .map { it * deltaTime }
-            .toTypedArray()
-
-        // Combine propagated state and bias effects
-        val updatedErrorStateVector = FloatArray(propagatedErrorStateVector.size) { i ->
-            propagatedErrorStateVector[i] + (biasEffect.getOrElse(i) { 0f })
+        // 8) Multiply by Δt and add to phiXs
+        for (i in 0..8) {
+            propagatedErrorStateVector[i][0] += Gbs[i][0] * deltaTime
         }
 
-        // Convert the updated vector back to ErrorState
-        return ErrorState.fromVector(updatedErrorStateVector)
+        // 9) Convert back to ErrorState (9D)
+        return ErrorState.fromVector9x1(propagatedErrorStateVector)
+    }
+
+    private fun buildBiasInfluenceMatrix(attitudeMatrix: Array<FloatArray>): Array<FloatArray> {
+        // We want a 9×6 array
+        val G = Array(9) { FloatArray(6) { 0f } }
+
+        // Top block: [O_{3,3}, O_{3,3}] => already zero by default
+
+        // Middle block (rows 3..5) = [O_{3,3}, C_i^b]
+        for (r in 0..2) {
+            for (c in 0..2) {
+                G[3 + r][3 + c] = attitudeMatrix[r][c]
+            }
+        }
+
+        // Bottom block (rows 6..8) = [-C_i^b, O_{3,3}]
+        for (r in 0..2) {
+            for (c in 0..2) {
+                G[6 + r][c] = -attitudeMatrix[r][c]
+            }
+        }
+
+        return G
     }
 
     fun updateErrorStateWithZUPT(
@@ -104,13 +121,13 @@ class AdaptiveKalmanFilter(
         val correction = matrixMultiply(H_t, errorVelocityState.toColumnMatrix()).flatten2d()
 
         // Step 4: Apply correction to error state
-        val updatedErrorStateVector = errorState.toVector()
-            .flatten2d()
-            .zip(correction) { e, c -> e + c }
-            .toFloatArray()
+        val updatedErrorStateVector = errorState.toVector9x1().flatten2d()
+        val updatedWithCorrection = FloatArray(9) { i ->
+            updatedErrorStateVector[i] + correction[i]
+        }
 
         // Step 5: Convert back to ErrorState
-        return ErrorState.fromVector(updatedErrorStateVector)
+        return ErrorState.fromVector(updatedWithCorrection)
     }
 
     /**
@@ -140,13 +157,12 @@ class AdaptiveKalmanFilter(
         previousStepPosition: FloatArray,  // pₖ₋₁ in navigation frame
         fzMax: Float,
         fzMin: Float,
-        K: Float,
         rotationMatrix: Array<FloatArray>,
         deltaTime: Float
     ): ErrorState {
         // --- Equation (10) Implementation ---
         // Compute step length using: L_step = K * sqrt[4](f^i_z(max) - f^i_z(min))
-        val stepLength = K * (fzMax - fzMin).toDouble().pow(0.25).toFloat()
+        val stepLength = strideConstant * (fzMax - fzMin).toDouble().pow(0.25).toFloat()
 
         // Form the expected step vector in the device coordinate system: [0, L_step, 0].
         // (This corresponds to the assumption that the pedestrian walks in the facing direction.)
@@ -290,22 +306,19 @@ class AdaptiveKalmanFilter(
         // --- End Equation (13) Implementation ---
 
         // --- Equation (14) Implementation ---
-        // 1. Create a 3x3 zero matrix for the position block.
-        val zero3x3 = zeroMatrix(3, 3)
-
-        // 2. The velocity error block is given by the rotation matrix C_b^i.
+        // 1. The velocity error block is given by the rotation matrix C_b^i.
         val Cbi = rotationMatrix
 
-        // 3. Compute the skew-symmetric matrix of the velocity vector: (v_i)^×.
+        // 2. Compute the skew-symmetric matrix of the velocity vector: (v_i)^×.
         val skewVi = skewSymmetric(velocity)
 
-        // 4. Compute the third block as -C_b^i * (v_i)^×.
+        // 3. Compute the third block as -C_b^i * (v_i)^×.
         val CbiSkewVi = matrixMultiply(Cbi, skewVi)
         val negCbiSkewVi = Array(3) { i ->
             FloatArray(3) { j -> -CbiSkewVi[i][j] }
         }
 
-        // 5. Assemble the full 3×9 observation matrix:
+        // 4. Assemble the full 3×9 observation matrix:
         //    H_stepVelocity = [ O₃,  C_b^i,  - C_b^i (v_i)^× ]
         val H_stepVelocity = Array(3) { i ->
             FloatArray(9).apply {
@@ -323,7 +336,7 @@ class AdaptiveKalmanFilter(
         // --- End Equation (14) Implementation ---
 
         // Define a measurement noise covariance matrix R (here a diagonal matrix with small variance).
-        val R = MathUtils.identityMatrix(3).map { it.map { 0.02f }.toFloatArray() }.toTypedArray()
+        val R = identityMatrix(3).map { it.map { 0.02f }.toFloatArray() }.toTypedArray()
 
         // Use the generic Kalman filter update function (to be implemented) to correct the error state:
         //   δx = (Hᵀ·R⁻¹·H)⁻¹ · Hᵀ·R⁻¹·(measuredResidual)

@@ -7,28 +7,28 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import fm.pathfinder.model.Acceleration
+import fm.pathfinder.model.Building
 import fm.pathfinder.model.Vector
 import fm.pathfinder.sensor.SensorCollector
-import fm.pathfinder.model.Building
 import fm.pathfinder.utils.LimitedSizeQueue
 
 class MapPresenter(
     private val mapFragment: MapFragment,
     private val context: Context
-): Building.Event{
+) : Building.Event {
     companion object {
         private const val TAG: String = "MapPresenter"
         private const val MIN_CHART_SIZE = 100
     }
+
     private val building: Building = Building()
-    private var sensorCollector = SensorCollector(context, building, this)
+    private var sensorCollector = SensorCollector(context, building)
     private var scanningOn = false
 
     private val chartEntries = LimitedSizeQueue<Int>(MIN_CHART_SIZE)
 
     init {
         building.subscribe(this)
-        sensorCollector.initializeSensors()
     }
 
     fun startCalibration() {
@@ -67,7 +67,12 @@ class MapPresenter(
             // dummy data
             (0..MIN_CHART_SIZE).map { Entry(it.toFloat(), it.toFloat()) }
         } else {
-            chartEntries.mapIndexed { index, acceleration -> Entry(index.toFloat(), acceleration.toFloat()) }
+            chartEntries.mapIndexed { index, acceleration ->
+                Entry(
+                    index.toFloat(),
+                    acceleration.toFloat()
+                )
+            }
         }
         val lineDataSet = LineDataSet(dataSet, "Label for Data") // Set the label here
         val lineData = LineData(lineDataSet)
@@ -76,7 +81,7 @@ class MapPresenter(
         mapFragment.lineChart.invalidate()
     }
 
-    fun acceleration(acc: Acceleration){
+    fun acceleration(acc: Acceleration) {
         chartEntries.add(acc.norm().toInt())
         setLineChart()
     }

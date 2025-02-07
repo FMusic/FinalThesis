@@ -19,6 +19,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import fm.pathfinder.R
 import fm.pathfinder.utils.InputDialogFragment
+
 /**
  * tutorial used: https://www.thecrazyprogrammer.com/2017/01/how-to-get-current-location-in-android.html
  */
@@ -97,26 +98,31 @@ class MapFragment : Fragment() {
         stopScanButton(view)
     }
 
-
     private fun startScanButton(view: View) {
         btnStartScan = view.findViewById(R.id.btnStartScan)
+        btnStartScan.text = "Calibration"
         btnStartScan.setOnClickListener {
-            mapPresenter.startScan()
-            btnStartScan.visibility = View.INVISIBLE
-            btnStopScan.visibility = View.VISIBLE
-            btnNewRoom.visibility = View.VISIBLE
+            mapPresenter.startCalibration()
+            btnStartScan.text = "Stop Calibration"
+            btnStartScan.setOnClickListener {
+                mapPresenter.startScan()
+                btnStartScan.visibility = View.INVISIBLE
+                btnStopScan.visibility = View.VISIBLE
+                btnNewRoom.visibility = View.VISIBLE
+            }
         }
     }
 
     private fun stopScanButton(view: View) {
         btnStopScan = view.findViewById(R.id.btnStopScan)
+        btnStopScan.text = "Stop Scan"
         btnStopScan.setOnClickListener {
             stopScan("pathfinder")
         }
     }
 
     private fun stopScan(buildingName: String? = null) {
-        if(buildingName != null) {
+        if (buildingName != null) {
             mapPresenter.stopScan(buildingName)
         } else {
             val inputDialog = InputDialogFragment().setTitle("Enter Building Name")

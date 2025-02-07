@@ -5,19 +5,21 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.hardware.SensorManager.getRotationMatrixFromVector
 import android.util.Log
 import fm.pathfinder.model.Building
 import fm.pathfinder.model.ErrorState
-import fm.pathfinder.ui.MapPresenter
+import fm.pathfinder.model.SensorBias
 import fm.pathfinder.utils.AdaptiveKalmanFilter
 import fm.pathfinder.utils.Calibrator
+import fm.pathfinder.utils.MathUtils.matrixMultiply
 import fm.pathfinder.utils.ZUPTFilter
 import java.sql.Timestamp
+import kotlin.math.pow
 
 class SensorCollector(
     private val context: Context,
-    private val building: Building,
-    private val mapPresenter: MapPresenter
+    private val building: Building
 ) : SensorEventListener {
     private val samplingPeriod = SensorManager.SENSOR_DELAY_UI
     private val calibrator = Calibrator()
@@ -28,25 +30,42 @@ class SensorCollector(
 
     private var startTimestamp = 0L
 
+    // For computing Δt.
+    private var lastUpdateTime: Long = 0
+
+    // Create an instance of the Kalman filter.
+    // strideConstant is used in the step length calculation.
     private lateinit var kalmanFilter: AdaptiveKalmanFilter
 
-    override fun onSensorChanged(event: SensorEvent?) {
-        when (event?.sensor?.type) {
-            Sensor.TYPE_ROTATION_VECTOR -> {
-                rotationValues(event.values, processTimestamp(event.timestamp))
-            }
+    // Initialize the error state (all zeros initially) and sensor bias (calibrate as needed).
+    private var errorState = ErrorState()
+    private val sensorBias = SensorBias()
 
-            Sensor.TYPE_ACCELEROMETER -> {
-                accelerationValues(event.values, processTimestamp(event.timestamp))
-            }
-        }
+    // For step position and velocity updates.
+    private var previousStepPosition = floatArrayOf(0f, 0f, 0f)  // in navigation frame (meters)
+    private var currentStepPosition = floatArrayOf(0f, 0f, 0f)
+
+    // We'll compute step velocity as step length divided by the time between steps.
+    private var lastStepTime: Long = 0
+    private var stepVelocity = floatArrayOf(0f, 1f, 0f)
+    private var strideConstant = 0.0f
+
+    // A sliding window for vertical acceleration (timestamp in ms, verticalAcc in m/s^2).
+    private val verticalAccWindow = mutableListOf<Pair<Long, Float>>()
+
+    // Threshold for detecting a step (tunable).
+    private val verticalAccDiffThreshold = 2.0f  // e.g., 2 m/s^2 difference
+
+    // Buffers to store sensor data.
+    // The rotation vector is converted to a 3x3 rotation matrix.
+    private var rotationMatrix: Array<FloatArray>? = null
+    private var acceleration: FloatArray? = null
+
+    init {
+        initializeSensors()
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        Log.i(TAG, "Accuracy changed")
-    }
-
-    fun initializeSensors() {
+    private fun initializeSensors() {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         var sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         val rotationInitialized = sensorManager.registerListener(this, sensor, samplingPeriod)
@@ -55,10 +74,199 @@ class SensorCollector(
         sensorsInitialized = rotationInitialized && accelerationInitialized
     }
 
+    override fun onSensorChanged(event: SensorEvent?) {
+        event ?: return
+        if (!scanMode && !calibrationMode) return
+
+        when (event.sensor.type) {
+            Sensor.TYPE_ROTATION_VECTOR -> {
+                rotationValues(event.values, processTimestamp(event.timestamp))
+            }
+
+            Sensor.TYPE_ACCELEROMETER -> {
+                accelerationValues(event.values, processTimestamp(event.timestamp))
+            }
+        }
+        if (!calibrationMode) {
+            calculateErrorState()
+        }
+    }
+
+    /**
+     * In a real application you would use the rotation vector sensor
+     * to obtain the device-to-navigation frame rotation matrix.
+     */
+    private fun rotationValues(values: FloatArray, timestamp: Long) {
+        // Only update when sensors are initialized and in calibration or scanning mode.
+        if (!sensorsInitialized || !(calibrationMode && scanMode)) return
+        val rotMat = FloatArray(9)
+        getRotationMatrixFromVector(rotMat, values)
+        // Convert the flat 9-element array into a 3x3 matrix.
+        rotationMatrix = arrayOf(
+            floatArrayOf(rotMat[0], rotMat[1], rotMat[2]),
+            floatArrayOf(rotMat[3], rotMat[4], rotMat[5]),
+            floatArrayOf(rotMat[6], rotMat[7], rotMat[8])
+        )
+    }
+
+    /**
+     * Processes accelerometer values.
+     *
+     * In addition to simply storing the latest acceleration, we also compute the vertical acceleration
+     * (in the navigation frame) and add it to a sliding window for step detection.
+     */
+    private fun accelerationValues(values: FloatArray, timestamp: Long) {
+        if (!sensorsInitialized) return
+
+        acceleration = values.clone()
+
+        // Compute vertical acceleration (assume the third row of rotationMatrix gives the vertical direction).
+        // If rotationMatrix is not yet available, fallback to raw z-axis.
+        val verticalAcc = if (rotationMatrix != null) {
+            rotationMatrix!![2][0] * values[0] +
+                    rotationMatrix!![2][1] * values[1] +
+                    rotationMatrix!![2][2] * values[2]
+        } else {
+            values[2]
+        }
+
+        // Add the (timestamp, verticalAcc) pair to the window.
+        verticalAccWindow.add(Pair(timestamp, verticalAcc))
+
+        // Optionally, clear old samples if the window grows too large.
+        if (verticalAccWindow.size > 50) {  // adjust window size as needed
+            verticalAccWindow.removeAt(0)
+        }
+
+        // If in calibration mode, add acceleration to calibrator.
+        if (calibrationMode) {
+            val ts = Timestamp(timestamp)
+            calibrator.addAcceleration(values, ts)
+        } else {
+            acceleration = values.clone()
+        }
+    }
+
+    /**
+     * This function updates the error state using the Kalman filter.
+     * It performs state propagation, ZUPT, and then checks for step detection.
+     */
+    private fun calculateErrorState() {
+        // When both rotation and acceleration data are available, update the filter.
+        if (rotationMatrix != null && acceleration != null) {
+            // Compute Δt in seconds.
+            val currentTime = System.nanoTime()
+            val deltaTime = (currentTime - lastUpdateTime) * 1e-9f
+            lastUpdateTime = currentTime
+
+            // Propagate the error state using the current acceleration measurement.
+            errorState = kalmanFilter.propagateErrorState(
+                errorState,
+                sensorBias,
+                acceleration!!,
+                deltaTime,
+                rotationMatrix!!
+            )
+
+            // Apply Zero Velocity Update (ZUPT) when the acceleration indicates near-zero motion.
+            if (ZUPTFilter.detectZeroVelocity(acceleration!!)) {
+                // Here we expect the velocity to be zero.
+                errorState = kalmanFilter.updateErrorStateWithZUPT(
+                    errorState,
+                    floatArrayOf(0f, 0f, 0f), // expecting zero velocity
+                    deltaTime
+                )
+            }
+
+            // --- Step Detection Logic ---
+            // When the vertical acceleration window has enough samples, check if a step occurred.
+            if (verticalAccWindow.size >= 10) { // at least 10 samples in the window
+                // Find the maximum and minimum vertical acceleration values in the window.
+                val maxPair = verticalAccWindow.maxByOrNull { it.second }
+                val minPair = verticalAccWindow.minByOrNull { it.second }
+                if (maxPair == null || minPair == null) return
+                val diff = maxPair.second - minPair.second
+                // If the difference exceeds the threshold, a step is assumed.
+                if (diff < verticalAccDiffThreshold) return
+
+                val currentStepTime = maxPair.first
+                val stepTimeSec = if (lastStepTime == 0L) 0.5f
+                else (currentStepTime - lastStepTime) / 1000f
+                lastStepTime = currentStepTime
+
+                // Compute step length using Equation (10):
+                // L_step = strideConstant * (fzMax - fzMin)^(1/4)
+                val stepLength = strideConstant * diff.toDouble().pow(0.25).toFloat()
+
+                // Compute step velocity as step length divided by step time.
+                val computedStepVelocity =
+                    if (stepTimeSec > 0f) stepLength / stepTimeSec else stepLength
+
+                // Update the step positions.
+                // The expected displacement is obtained by rotating [0, L_step, 0]^T
+                // from the device to the navigation frame.
+                val expectedStep = floatArrayOf(0f, stepLength, 0f)
+                val expectedStepMatrix = arrayOf(
+                    floatArrayOf(expectedStep[0]),
+                    floatArrayOf(expectedStep[1]),
+                    floatArrayOf(expectedStep[2])
+                )
+                val observedStepMatrix =
+                    matrixMultiply(rotationMatrix!!, expectedStepMatrix)
+                val displacement = FloatArray(3) { i -> observedStepMatrix[i][0] }
+
+                // Update positions: previous becomes current, and current is advanced.
+                previousStepPosition = currentStepPosition.copyOf()
+                currentStepPosition = floatArrayOf(
+                    currentStepPosition[0] + displacement[0],
+                    currentStepPosition[1] + displacement[1],
+                    currentStepPosition[2] + displacement[2]
+                )
+
+                // Now update the error state with the step length update.
+                // Use the maximum and minimum vertical acceleration from the window.
+                errorState = kalmanFilter.updateErrorStateWithStepLength(
+                    errorState,
+                    currentStepPosition,      // p_k (from step detection)
+                    previousStepPosition,     // pₖ₋₁ (previous step position)
+                    maxPair.second,           // fzMax (from the window)
+                    minPair.second,           // fzMin (from the window)
+                    rotationMatrix!!,
+                    deltaTime
+                )
+
+                // Also update the error state with the step velocity update.
+                errorState = kalmanFilter.updateErrorStateWithStepVelocity(
+                    errorState,
+                    floatArrayOf(
+                        0f,
+                        computedStepVelocity,
+                        0f
+                    ), // v_l: measured step velocity in nav frame
+                    floatArrayOf(
+                        0f,
+                        0f,
+                        0f
+                    ), // v_i: assume zero current velocity (or use measured value)
+                    rotationMatrix!!
+                )
+                verticalAccWindow.clear()
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        Log.i(TAG, "Accuracy changed")
+    }
+
     fun setCalibration(value: Boolean) {
         calibrationMode = value
         if (!sensorsInitialized) {
             initializeSensors()
+        }
+        if (!value) {
+            strideConstant = calibrator.stepLength(10).toFloat()
+            kalmanFilter = AdaptiveKalmanFilter(strideConstant)
         }
     }
 
@@ -73,36 +281,18 @@ class SensorCollector(
         }
     }
 
-    private fun rotationValues(values: FloatArray, timestamp: Long) {
-        if (!sensorsInitialized || !(calibrationMode && scanMode)) return
-    }
-
-    private fun accelerationValues(values: FloatArray, timestamp: Long) {
-        if (!sensorsInitialized) return
-        else if (calibrationMode) {
-            val ts = Timestamp(timestamp)
-            calibrator.addAcceleration(values, ts)
-        } else if (scanMode) {
-            if (ZUPTFilter.detectZeroVelocity(values)) {
-                val currentErrorState = ErrorState()
-                kalmanFilter.updateErrorStateWithZUPT(
-                    currentErrorState,
-                    event.values,
-                    deltaTime
-                )
-            }
-        }
-    }
-
+    /**
+     * Converts sensor timestamp to milliseconds relative to start.
+     */
     private fun processTimestamp(timestamp: Long): Long {
         if (startTimestamp == 0L) {
             startTimestamp = timestamp
         }
-        return (timestamp - startTimestamp) / 1_000_000
+        return (timestamp - startTimestamp) / 1_000_000  // convert to milliseconds
     }
 
     companion object {
-        const val TAG = "Location"
+        const val TAG = "SensorCollector"
         const val ORIENTATION_MATRIX_SIZE = 3
         const val MINIMUM_ACCELERATION_DELTA = 0.5f
     }
