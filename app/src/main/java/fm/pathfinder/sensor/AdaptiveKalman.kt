@@ -1,4 +1,4 @@
-package fm.pathfinder.utils
+package fm.pathfinder.sensor
 
 import fm.pathfinder.model.ErrorState
 import fm.pathfinder.model.SensorBias
@@ -292,7 +292,7 @@ class AdaptiveKalmanFilter(
      * @param rotationMatrix The rotation matrix C_b^i (from body to navigation frame).
      * @return The updated error state.
      */
-    fun updateErrorStateWithStepVelocity(
+     fun updateErrorStateWithStepVelocity(
         errorState: ErrorState,
         stepVelocity: FloatArray,  // v_l: step velocity measured (e.g., step length/step period)
         velocity: FloatArray,      // v_i: current velocity state in the navigation frame

@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 
 class WifiSensor(
     private val mContext: Context,
-    private val sensorCollector: SensorCollector
+    private val sensors: Sensors
 ) : BroadcastReceiver() {
     private var lastTimestamp: Long = 0
 

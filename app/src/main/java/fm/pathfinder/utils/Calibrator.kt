@@ -1,13 +1,12 @@
 package fm.pathfinder.utils
 
 import fm.pathfinder.utils.Extensions.norm
-import java.sql.Timestamp
 
 data class MaxMinPair(
     var max: Double,
     var min: Double,
-    var timestampMax: Timestamp,
-    var timestampMin: Timestamp
+    var timestampMax: Long,
+    var timestampMin: Long
 )
 
 class Calibrator {
@@ -18,7 +17,7 @@ class Calibrator {
     private val last5Acceleration = LimitedSizeQueue<Double>(5)
     private var stepDetected: Boolean = false
 
-    fun addAcceleration(acceleration: FloatArray, timestamp: Timestamp) {
+    fun addAcceleration(acceleration: FloatArray, timestamp: Long) {
         val currentNorm = acceleration.norm().toDouble()
         if (last5Averages.size == 5) {
             last5Acceleration.add(currentNorm)
@@ -46,7 +45,7 @@ class Calibrator {
         for (i in 0 until stepMaxMinAcceleration.size) {
             val accelerationDifference =
                 stepMaxMinAcceleration[i].max - stepMaxMinAcceleration[i].min
-            distanceCoveredSensor += accelerationDifference / 2 * (stepMaxMinAcceleration[i].timestampMax.time - stepMaxMinAcceleration[i].timestampMin.time)
+            distanceCoveredSensor += accelerationDifference / 2 * (stepMaxMinAcceleration[i].timestampMax - stepMaxMinAcceleration[i].timestampMin)
         }
         return distanceCoveredSensor / length
     }

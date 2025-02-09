@@ -1,7 +1,7 @@
 package fm.pathfinder.model
 
 import android.util.Log
-import fm.pathfinder.sensor.SensorCollector
+import fm.pathfinder.sensor.Sensors
 
 class Building(
     private var buildingName: String = "Default"
@@ -24,13 +24,13 @@ class Building(
     }
 
     fun enterNewRoom(roomName: String) {
-        Log.i(SensorCollector.TAG, "Room switch: ${currentRoom.roomName} to $roomName")
+        Log.i(Sensors.TAG, "Room switch: ${currentRoom.roomName} to $roomName")
         rooms.add(currentRoom)
         currentRoom = VectorRoom(ArrayList(), roomName)
     }
 
     fun exitRoom() {
-        Log.i(SensorCollector.TAG, "Room exit: ${currentRoom.roomName}")
+        Log.i(Sensors.TAG, "Room exit: ${currentRoom.roomName}")
         rooms.add(currentRoom)
         currentRoom = defaultRoom
     }

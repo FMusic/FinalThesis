@@ -9,7 +9,7 @@ import com.github.mikephil.charting.data.LineDataSet
 import fm.pathfinder.model.Acceleration
 import fm.pathfinder.model.Building
 import fm.pathfinder.model.Vector
-import fm.pathfinder.sensor.SensorCollector
+import fm.pathfinder.sensor.Sensors
 import fm.pathfinder.utils.LimitedSizeQueue
 
 class MapPresenter(
@@ -22,7 +22,7 @@ class MapPresenter(
     }
 
     private val building: Building = Building()
-    private var sensorCollector = SensorCollector(context, building)
+    private var sensors = Sensors(context, building)
     private var scanningOn = false
 
     private val chartEntries = LimitedSizeQueue<Int>(MIN_CHART_SIZE)
@@ -32,18 +32,18 @@ class MapPresenter(
     }
 
     fun startCalibration() {
-        sensorCollector.setCalibration(true)
+        sensors.setCalibration(true)
     }
 
     fun startScan() {
         scanningOn = true
-        sensorCollector.setScan(true)
+        sensors.setScan(true)
         building.setScan(true)
     }
 
     fun stopScan(filename: String) {
         scanningOn = false
-        sensorCollector.setScan(false)
+        sensors.setScan(false)
         building.setScan(false)
 //        DataStoragePresenter(context).storeBuildingToFile(building, filename)
         Toast.makeText(context, "Saving building data", Toast.LENGTH_SHORT).show()
