@@ -22,6 +22,9 @@ enum class API_ENDPOINTS {
     },
     ORIENTATION_VALUES{
         override fun toString() = "/orientationvalues"
+    },
+    STEP_EVENTS_VALUES{
+        override fun toString() = "/stepevents"
     }
 }
 
@@ -37,6 +40,34 @@ class ApiHelper {
             val jsonArray = JSONArray()
             dt.stream().map { JSONObject(it) }.forEach { jsonArray.put(it) }
             postToApi(jsonArray, endpoints)
+        }
+    }
+
+    suspend fun saveData(apiData: List<Map<String, Any>>, endpoints: API_ENDPOINTS) {
+        withContext(Dispatchers.IO) { // Run on a background thread
+            val jsonArray = JSONArray()
+            apiData.stream().map { JSONObject(it) }.forEach { jsonArray.put(it) }
+            postToApi(jsonArray, endpoints)
+        }
+    }
+
+    private fun postToApi(jsonData: JSONObject, endpoints: API_ENDPOINTS){
+        val requestBody = jsonData.toString()
+            .toRequestBody("application/json".toMediaTypeOrNull())
+
+        val request = Request.Builder()
+            .url("$apiUrl$endpoints")
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                Log.e("ApiHelper", "Failed to post data: ${response.code}, ${response.message}")
+                Log.e("ApiHelper", "Failed to post data to: $endpoints")
+                Log.e("ApiHelper", "Failed to post data: ${response.body?.string()}")
+                throw Exception("Failed to post data: ${response.code}, ${response.message}")
+            }
+            Log.i("ApiHelper", "Data successfully posted to $endpoints: ${response.body?.string()}")
         }
     }
 

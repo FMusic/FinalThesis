@@ -1,19 +1,26 @@
 package fm.pathfinder.sensor
 
+import android.util.Log
 import fm.pathfinder.model.ErrorState
 import fm.pathfinder.model.SensorBias
 import fm.pathfinder.utils.Extensions.flatten2d
 import fm.pathfinder.utils.Extensions.toColumnMatrix
 import fm.pathfinder.utils.Extensions.transpose
+import fm.pathfinder.utils.MathUtils.addMatrices
 import fm.pathfinder.utils.MathUtils.identityMatrix
 import fm.pathfinder.utils.MathUtils.invertMatrix
 import fm.pathfinder.utils.MathUtils.matrixMultiply
 import fm.pathfinder.utils.MathUtils.skewSymmetric
+import fm.pathfinder.utils.MathUtils.subtractMatrices
 import kotlin.math.pow
 
 class AdaptiveKalmanFilter(
     private val strideConstant: Float,
 ) {
+    // Maintain a 9×9 error covariance matrix.
+    // (Initialize as the identity; you might want to scale it to reflect your uncertainty.)
+    private var errorCovariance: Array<FloatArray> = identityMatrix(9)
+
     fun propagateErrorState(
         errorState: ErrorState,
         bias: SensorBias,
@@ -99,36 +106,46 @@ class AdaptiveKalmanFilter(
         return G
     }
 
+    /**
+     * Updates the error state when a Zero Velocity Update (ZUPT) is detected.
+     *
+     * The observation matrix for ZUPT is:
+     *   H_zupt = [ 0₃  I₃  0₃ ]
+     *
+     * Since we assume the measured velocity is zero, the innovation is
+     *   y = 0 - (velocity error predicted by the state)
+     */
     fun updateErrorStateWithZUPT(
         errorState: ErrorState,
-        velocity: FloatArray,
+        velocity: FloatArray,  // Current measured velocity in the navigation frame.
         deltaTime: Float
     ): ErrorState {
-        // Equation 7 - Define observation matrix H_zupt
+        // Define the observation matrix H_zupt (3×9).
         val H_zupt = arrayOf(
             floatArrayOf(0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f),
             floatArrayOf(0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f),
             floatArrayOf(0f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f)
-        ) // 3x9 matrix
+        )
 
-        // Equation 6 - Compute error velocity state (dv = v_i - 0)
-        val errorVelocityState = errorState.velocityError.mapIndexed { index, dv_i ->
-            dv_i + velocity[index] // Adding velocity to velocity error
-        }.toFloatArray()
+        // In a ZUPT, the measurement is that the device is stationary: measured velocity = 0.
+        // The predicted measurement (from the error state) is the velocity error.
+        // Let x be the 9-element error vector where indices 3-5 represent velocity error.
+        val stateVector = errorState.toVector().flatten2d() // 9-element vector.
+        val predictedVelocityError = floatArrayOf(stateVector[3], stateVector[4], stateVector[5])
+        // Innovation: y = (measured velocity 0) - predictedVelocityError.
+        val measurementResidual = FloatArray(3) { i -> 0f - predictedVelocityError[i] }
 
-        // Step 3: Compute correction term: H^T * residual
-        val H_t = H_zupt.transpose() // Transpose of H_zupt
-        val correction = matrixMultiply(H_t, errorVelocityState.toColumnMatrix()).flatten2d()
+        // Define measurement noise covariance R (3×3).
+        val R = identityMatrix(3).map { it.map { 0.02f }.toFloatArray() }.toTypedArray()
 
-        // Step 4: Apply correction to error state
-        val updatedErrorStateVector = errorState.toVector9x1().flatten2d()
-        val updatedWithCorrection = FloatArray(9) { i ->
-            updatedErrorStateVector[i] + correction[i]
-        }
-
-        // Step 5: Convert back to ErrorState
-        return ErrorState.fromVector(updatedWithCorrection)
+        // Perform the EKF update.
+        val (updatedErrorState, updatedCovariance) = updateErrorState(
+            errorState, errorCovariance, H_zupt, measurementResidual, R
+        )
+        errorCovariance = updatedCovariance
+        return updatedErrorState
     }
+
 
     /**
      * Updates the error state using a step length measurement.
@@ -202,10 +219,17 @@ class AdaptiveKalmanFilter(
 
         // Assume a small measurement noise covariance R.
         val R = identityMatrix(3).map { it.map { 0.02f }.toFloatArray() }.toTypedArray()
+//
+//        // Update the error state using the generic Kalman update function.
+//        // (This function should implement: δx = (Hᵀ·R⁻¹·H)⁻¹ · Hᵀ·R⁻¹·dp, and then x_new = x + δx.)
+//        return updateErrorState(errorState, H_stepLength, measurementResidual, R)
 
-        // Update the error state using the generic Kalman update function.
-        // (This function should implement: δx = (Hᵀ·R⁻¹·H)⁻¹ · Hᵀ·R⁻¹·dp, and then x_new = x + δx.)
-        return updateErrorState(errorState, H_stepLength, measurementResidual, R)
+        // Perform the EKF update.
+        val (updatedErrorState, updatedCovariance) = updateErrorState(
+            errorState, errorCovariance, H_stepLength, measurementResidual, R
+        )
+        errorCovariance = updatedCovariance
+        return updatedErrorState
     }
 
 
@@ -225,46 +249,67 @@ class AdaptiveKalmanFilter(
      */
     private fun updateErrorState(
         errorState: ErrorState,
-        observationMatrix: Array<FloatArray>,  // H (e.g., 3x9)
-        observation: FloatArray,                // z (e.g., 3x1)
-        noiseCovariance: Array<FloatArray>        // R (e.g., 3x3)
-    ): ErrorState {
-        // 1. Compute H^T.
-        val Ht = observationMatrix.transpose() // Dimension: 9x3
+        errorCovariance: Array<FloatArray>, // 9×9
+        observationMatrix: Array<FloatArray>, // H (3×9)
+        observation: FloatArray,              // measurement residual (3-element vector)
+        noiseCovariance: Array<FloatArray>      // R (3×3)
+    ): Pair<ErrorState, Array<FloatArray>> {
+        // Convert error state x (9×1 vector) from the ErrorState model.
+        val x = errorState.toVector().flatten2d()  // 9-element vector.
+        val xCol = x.toColumnMatrix()  // 9×1 column matrix.
 
-        // 2. Compute R⁻¹. (Since R is diagonal, we simply invert each diagonal element.)
-        val Rinv = Array(noiseCovariance.size) { i ->
-            FloatArray(noiseCovariance[0].size) { j ->
-                if (i == j && noiseCovariance[i][j] != 0f) 1f / noiseCovariance[i][j] else 0f
-            }
+        // Compute the predicted measurement: H * x.
+        val Hx = matrixMultiply(observationMatrix, xCol)  // 3×1.
+        // Innovation: y = (observation as column) - Hx.
+        val zCol = observation.toColumnMatrix()           // 3×1.
+        val y = Array(3) { i -> floatArrayOf(zCol[i][0] - Hx[i][0]) }
+
+        // Compute the innovation covariance: S = H P Hᵀ + R.
+        val Ht = observationMatrix.transpose()              // 9×3.
+        val HP = matrixMultiply(observationMatrix, errorCovariance) // (3×9)*(9×9)=3×9.
+        val HPHt = matrixMultiply(HP, Ht)                     // (3×9)*(9×3)=3×3.
+        val S = addMatrices(HPHt, noiseCovariance)            // 3×3.
+        try {
+            // Invert S.
+            val SInv = S.invertMatrix()                           // 3×3.
+
+            // Compute the Kalman gain: K = P Hᵀ S⁻¹.
+            val PHt = matrixMultiply(errorCovariance, Ht)         // 9×3.
+            val K = matrixMultiply(PHt, SInv)                     // 9×3.
+
+            // Compute the correction: deltaX = K y.
+            val deltaXMatrix = matrixMultiply(K, y)               // 9×1.
+            val deltaX = deltaXMatrix.flatten2d()                 // 9-element vector.
+
+            // Update the error state: x_new = x + deltaX.
+            val updatedX = FloatArray(x.size) { i -> x[i] + deltaX[i] }
+
+            // Update the error covariance: P_new = (I - K H) P.
+            val K_H = matrixMultiply(K, observationMatrix)        // 9×9.
+            val I = identityMatrix(9)
+            val I_minus_KH = subtractMatrices(I, K_H)
+            val updatedCovariance = matrixMultiply(I_minus_KH, errorCovariance)
+            Log.i(
+                "KalmanFilter",
+                "Updated error covariance: ${updatedCovariance.contentDeepToString()}, " +
+                        "Updated error state: ${updatedX.contentToString()}," +
+                        "Observation: ${observation.contentToString()}," +
+                        "Noise covariance: ${noiseCovariance.contentDeepToString()}," +
+                        "Observation matrix: ${observationMatrix.contentDeepToString()}," +
+                        "Innovation: ${y.contentDeepToString()}"
+            )
+            return Pair(ErrorState.fromVector(updatedX), updatedCovariance)
+        } catch (e: Exception) {
+            Log.e("KalmanFilter", "Matrix inversion failed: ${e.message}")
+            Log.i(
+                "KalmanFilter",
+                "ERROR Observation: ${observation.contentToString()}," +
+                        "Noise covariance: ${noiseCovariance.contentDeepToString()}," +
+                        "Observation matrix: ${observationMatrix.contentDeepToString()}"
+            )
+            // If the matrix inversion fails, return the original error state and covariance.
+            return Pair(errorState, errorCovariance)
         }
-
-        // 3. Compute A = Hᵀ · R⁻¹ · H.
-        val RinvH = matrixMultiply(Rinv, observationMatrix) // Dimension: (3x3)*(3x9) = 3x9.
-        val A = matrixMultiply(Ht, RinvH)                    // Dimension: (9x3)*(3x9) = 9x9.
-
-        // 4. Invert A.
-        val Ainv = A.invertMatrix() // 9x9 matrix.
-
-        // 5. Compute B = Hᵀ · R⁻¹.
-        val B = matrixMultiply(Ht, Rinv) // Dimension: (9x3)*(3x3) = 9x3.
-
-        // 6. Convert observation vector z to a column matrix.
-        val zCol = observation.toColumnMatrix() // Dimension: 3x1.
-
-        // 7. Compute the correction: δx = A⁻¹ · (B · zCol).
-        val Bz = matrixMultiply(B, zCol)         // Dimension: 9x1.
-        val deltaXMatrix = matrixMultiply(Ainv, Bz) // Dimension: 9x1.
-        val deltaX = deltaXMatrix.flatten2d()       // 9-element vector.
-
-        // 8. Update the state: x_new = x + δx.
-        val currentState = errorState.toVector().flatten2d() // 9-element vector.
-        val updatedState = FloatArray(currentState.size) { i ->
-            currentState[i] + deltaX[i]
-        }
-
-        // 9. Convert the updated vector back to an ErrorState.
-        return ErrorState.fromVector(updatedState)
     }
 
     /**
@@ -292,7 +337,7 @@ class AdaptiveKalmanFilter(
      * @param rotationMatrix The rotation matrix C_b^i (from body to navigation frame).
      * @return The updated error state.
      */
-     fun updateErrorStateWithStepVelocity(
+    fun updateErrorStateWithStepVelocity(
         errorState: ErrorState,
         stepVelocity: FloatArray,  // v_l: step velocity measured (e.g., step length/step period)
         velocity: FloatArray,      // v_i: current velocity state in the navigation frame
@@ -341,7 +386,11 @@ class AdaptiveKalmanFilter(
         // Use the generic Kalman filter update function (to be implemented) to correct the error state:
         //   δx = (Hᵀ·R⁻¹·H)⁻¹ · Hᵀ·R⁻¹·(measuredResidual)
         // and then update the state: x_new = x + δx.
-        return updateErrorState(errorState, H_stepVelocity, measuredResidual, R)
+        val (updatedErrorState, updatedCovariance) = updateErrorState(
+            errorState, errorCovariance, H_stepVelocity, measuredResidual, R
+        )
+        errorCovariance = updatedCovariance
+        return updatedErrorState
     }
 
 }

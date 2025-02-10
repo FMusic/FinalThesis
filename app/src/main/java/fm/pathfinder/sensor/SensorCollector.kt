@@ -1,13 +1,19 @@
 package fm.pathfinder.sensor
 
 import android.hardware.SensorManager.getRotationMatrixFromVector
+import android.util.Log
 import fm.pathfinder.model.ErrorState
 import fm.pathfinder.model.SensorBias
+import fm.pathfinder.utils.API_ENDPOINTS
+import fm.pathfinder.utils.ApiHelper
 import fm.pathfinder.utils.MathUtils.matrixMultiply
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.math.pow
 
 class SensorCollector(private val strideLength: Float) {
-    private lateinit var kalmanFilter: AdaptiveKalmanFilter
+    private val kalmanFilter = AdaptiveKalmanFilter(strideLength)
 
     // For computing Δt.
     private var lastUpdateTime: Long = 0
@@ -34,11 +40,15 @@ class SensorCollector(private val strideLength: Float) {
     private var rotationMatrix: Array<FloatArray>? = null
     private var acceleration: FloatArray? = null
 
+    private val apiHelper = ApiHelper()
+    private var apiDataArray = mutableListOf<Map<String, Any>>() // Store data for API
+
     /**
      * In a real application you would use the rotation vector sensor
      * to obtain the device-to-navigation frame rotation matrix.
      */
     fun rotationValues(values: FloatArray, timestamp: Long) {
+        Log.d("SensorCollector", "Rotation: ${values[0]}, ${values[1]}, ${values[2]}, ${values[3]}")
         val rotMat = FloatArray(9)
         getRotationMatrixFromVector(rotMat, values)
         // Convert the flat 9-element array into a 3x3 matrix.
@@ -76,6 +86,7 @@ class SensorCollector(private val strideLength: Float) {
             verticalAccWindow.removeAt(0)
         }
         acceleration = values.clone()
+        Log.d("SensorCollector", "Acceleration: ${values[0]}, ${values[1]}, ${values[2]}")
         calculateErrorState()
     }
 
@@ -85,7 +96,7 @@ class SensorCollector(private val strideLength: Float) {
      */
     private fun calculateErrorState() {
         // When both rotation and acceleration data are available, update the filter.
-        if (rotationMatrix == null && acceleration == null) {
+        if (rotationMatrix == null || acceleration == null) {
             return
         }
         // Compute Δt in seconds.
@@ -104,6 +115,7 @@ class SensorCollector(private val strideLength: Float) {
 
         // Apply Zero Velocity Update (ZUPT) when the acceleration indicates near-zero motion.
         if (ZUPTFilter.detectZeroVelocity(acceleration!!)) {
+            Log.i("SensorCollector", "Zero velocity detected.")
             // Here we expect the velocity to be zero.
             errorState = kalmanFilter.updateErrorStateWithZUPT(
                 errorState,
@@ -115,6 +127,7 @@ class SensorCollector(private val strideLength: Float) {
         // --- Step Detection Logic ---
         // When the vertical acceleration window has enough samples, check if a step occurred.
         if (verticalAccWindow.size < 10) {
+            Log.e("SensorCollector", "Not enough samples for step detection.")
             return
         }
         // Find the maximum and minimum vertical acceleration values in the window.
@@ -133,6 +146,7 @@ class SensorCollector(private val strideLength: Float) {
         // Compute step length using Equation (10):
         // L_step = strideConstant * (fzMax - fzMin)^(1/4)
         val stepLength = strideLength * diff.toDouble().pow(0.25).toFloat()
+        Log.i("SensorCollector", "Step detected: length = $stepLength m, time = $stepTimeSec s")
 
         // Compute step velocity as step length divided by step time.
         val computedStepVelocity =
@@ -179,6 +193,32 @@ class SensorCollector(private val strideLength: Float) {
         errorState =
             kalmanFilter.updateErrorStateWithStepVelocity(errorState, v_l, v_i, rotationMatrix!!)
         verticalAccWindow.clear()
+        Log.i(
+            "SensorCollector",
+            "Step position: ${currentStepPosition[0]}, ${currentStepPosition[1]}, ${currentStepPosition[2]} " +
+                    "Step velocity: $computedStepVelocity m/s" +
+                    "Step length: $stepLength m" +
+                    "Step time: $stepTimeSec s" +
+                    "Previous step position: ${previousStepPosition[0]}, ${previousStepPosition[1]}, ${previousStepPosition[2]}" +
+                    "Max vertical acceleration: ${maxPair.second}"
+        )
+        apiDataArray.add(
+            mapOf(
+                "stepTimestamp" to currentStepTime,
+                "stepLength" to stepLength,
+                "velocity" to computedStepVelocity,
+                "posX" to currentStepPosition[0],
+                "posY" to currentStepPosition[1],
+                "posZ" to currentStepPosition[2],
+                "cumulativeDistance" to "cumDistance"
+            )
+        )
+        if (apiDataArray.size >= 100) {
+            CoroutineScope(Dispatchers.Default).launch {
+                apiHelper.saveData(apiDataArray, API_ENDPOINTS.STEP_EVENTS_VALUES)
+                apiDataArray.clear()
+            }
+        }
     }
 
 }

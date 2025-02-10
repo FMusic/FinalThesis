@@ -98,6 +98,28 @@ object MathUtils {
             FloatArray(n) { j -> augmented[i][j + n] }
         }
     }
+
+    fun addMatrices(a: Array<FloatArray>, b: Array<FloatArray>): Array<FloatArray> {
+        val rows = a.size
+        val cols = a[0].size
+        return Array(rows) { i ->
+            FloatArray(cols) { j -> a[i][j] + b[i][j] }
+        }
+    }
+
+    fun subtractMatrices(a: Array<FloatArray>, b: Array<FloatArray>): Array<FloatArray> {
+        val rows = a.size
+        val cols = a[0].size
+        return Array(rows) { i ->
+            FloatArray(cols) { j -> a[i][j] - b[i][j] }
+        }
+    }
+    /**
+     * Converts a FloatArray into a column matrix (an Array of FloatArrays with one element each).
+     */
+    fun FloatArray.toColumnMatrix(): Array<FloatArray> =
+        Array(this.size) { i -> floatArrayOf(this[i]) }
+
 }
 
 class LimitedSizeQueue<K : Number>(private val maxSize: Int) : ArrayList<K>() {

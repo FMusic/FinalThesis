@@ -50,6 +50,21 @@ CREATE TABLE IF NOT EXISTS orientationValues (
     timestamp BIGINT
 );
 
+CREATE TABLE IF NOT EXISTS stepEvents (
+    id SERIAL PRIMARY KEY,
+    stepTimestamp BIGINT,
+    stepLength DOUBLE PRECISION,
+    velocity DOUBLE PRECISION,
+    posX DOUBLE PRECISION,
+    posY DOUBLE PRECISION,
+    posZ DOUBLE PRECISION,
+    cumulativeDistance DOUBLE PRECISION,
+    -- add more if needed
+    createdAt TIMESTAMP DEFAULT now()
+);
+
+
+
 -- Grant SELECT, INSERT, UPDATE, and DELETE permissions on tables
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE accelerationValues TO public;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE accelerationFiltered TO public;

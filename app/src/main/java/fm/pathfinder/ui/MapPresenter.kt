@@ -39,6 +39,7 @@ class MapPresenter(
         scanningOn = true
         sensors.setScan(true)
         building.setScan(true)
+        sensors.setCalibration(false)
     }
 
     fun stopScan(filename: String) {

@@ -27,12 +27,14 @@ class Sensors(
     }
 
     private fun initializeSensors() {
+        Log.i(TAG, "Initializing sensors")
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         var sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         val rotationInitialized = sensorManager.registerListener(this, sensor, SAMPLING_PERIOD)
         sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         val accelerationInitialized = sensorManager.registerListener(this, sensor, SAMPLING_PERIOD)
         sensorsInitialized = rotationInitialized && accelerationInitialized
+        Log.i(TAG, "Sensors initialized: $sensorsInitialized")
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -49,7 +51,7 @@ class Sensors(
             Sensor.TYPE_ACCELEROMETER -> {
                 if (calibrationMode) {
                     calibrator.addAcceleration(event.values, processTimestamp(event.timestamp))
-                } else {
+                } else  {
                     sensorCollector.accelerationValues(event.values, processTimestamp(event.timestamp))
                 }
             }
@@ -67,6 +69,7 @@ class Sensors(
         }
         if (!value) {
             val stride = calibrator.stepLength(10).toFloat()
+            Log.i(TAG, "Calibrator Stride length: $stride")
             sensorCollector = SensorCollector(stride)
         }
     }
