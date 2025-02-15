@@ -1,8 +1,5 @@
 package fm.pathfinder.utils
 
-import java.util.stream.Collectors
-import kotlin.math.absoluteValue
-
 object MathUtils {
     fun identityMatrix(size: Int): Array<FloatArray> {
         return Array(size) { i -> FloatArray(size) { j -> if (i == j) 1f else 0f } }
@@ -114,6 +111,7 @@ object MathUtils {
             FloatArray(cols) { j -> a[i][j] - b[i][j] }
         }
     }
+
     /**
      * Converts a FloatArray into a column matrix (an Array of FloatArrays with one element each).
      */
@@ -125,17 +123,13 @@ object MathUtils {
 class LimitedSizeQueue<K : Number>(private val maxSize: Int) : ArrayList<K>() {
     override fun add(element: K): Boolean {
         val r = super.add(element)
-        if (spaceLeft() < 0) {
-            removeRange(0, spaceLeft().absoluteValue)
+        if (isFull()) {
+            removeAt(0)
         }
         return r
     }
 
-    private fun spaceLeft() = this.maxSize - this.size
+    private fun isFull(): Boolean = size > maxSize
 
-    fun isFull(): Boolean = spaceLeft() <= 0
-
-    fun average(): Double {
-        return this.stream().collect(Collectors.averagingDouble { it.toDouble() })
-    }
+    fun average(): Double = if (isEmpty()) 0.0 else sumOf { it.toDouble() } / size
 }

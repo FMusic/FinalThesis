@@ -28,6 +28,12 @@ class AdaptiveKalmanFilter(
         deltaTime: Float,
         attitudeMatrix: Array<FloatArray>
     ): ErrorState {
+        Log.i(
+            TAG, "Propagating error state with bias: $bias, " +
+                    "acceleration: ${acceleration.contentToString()}, " +
+                    "deltaTime: $deltaTime, " +
+                    "attitudeMatrix: ${attitudeMatrix.contentDeepToString()}"
+        )
         // Extract the skew-symmetric matrix of acceleration
         val skewSymmetricAcc = skewSymmetric(acceleration) // Returns a 3x3 matrix
 
@@ -79,11 +85,17 @@ class AdaptiveKalmanFilter(
             propagatedErrorStateVector[i][0] += Gbs[i][0] * deltaTime
         }
 
+        Log.i(TAG, "Propagated error state: ${propagatedErrorStateVector.contentDeepToString()}")
+
         // 9) Convert back to ErrorState (9D)
         return ErrorState.fromVector9x1(propagatedErrorStateVector)
     }
 
     private fun buildBiasInfluenceMatrix(attitudeMatrix: Array<FloatArray>): Array<FloatArray> {
+        Log.i(
+            TAG,
+            "Building bias influence matrix with attitude matrix: ${attitudeMatrix.contentDeepToString()}"
+        )
         // We want a 9×6 array
         val G = Array(9) { FloatArray(6) { 0f } }
 
@@ -102,7 +114,7 @@ class AdaptiveKalmanFilter(
                 G[6 + r][c] = -attitudeMatrix[r][c]
             }
         }
-
+        Log.i(TAG, "Built bias influence matrix: ${G.contentDeepToString()}")
         return G
     }
 
@@ -120,6 +132,10 @@ class AdaptiveKalmanFilter(
         velocity: FloatArray,  // Current measured velocity in the navigation frame.
         deltaTime: Float
     ): ErrorState {
+        Log.i(
+            TAG, "Updating error state with ZUPT: velocity=${velocity.contentToString()}, " +
+                    "deltaTime=$deltaTime"
+        )
         // Define the observation matrix H_zupt (3×9).
         val H_zupt = arrayOf(
             floatArrayOf(0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f),
@@ -143,6 +159,9 @@ class AdaptiveKalmanFilter(
             errorState, errorCovariance, H_zupt, measurementResidual, R
         )
         errorCovariance = updatedCovariance
+        Log.i(
+            TAG, "Updated error state with ZUPT: ${updatedErrorState.toVector().contentDeepToString()}"
+        )
         return updatedErrorState
     }
 
@@ -161,9 +180,10 @@ class AdaptiveKalmanFilter(
      * Equations implemented: (10) & (11) in the chapter.
      *
      * @param errorState The current error state.
+     * @param currentStepPosition The current step position p_k in the navigation frame.
+     * @param previousStepPosition The previous step position pₖ₋₁ in the navigation frame.
      * @param fzMax Maximum z-axis acceleration in the navigation frame.
      * @param fzMin Minimum z-axis acceleration in the navigation frame.
-     * @param K A scaling parameter (to be calibrated per pedestrian).
      * @param rotationMatrix The 3×3 rotation matrix (Cᵢᵇ) from device to navigation frame.
      * @param deltaTime The time interval Δt.
      * @return The updated error state after applying the step length update.
@@ -177,6 +197,12 @@ class AdaptiveKalmanFilter(
         rotationMatrix: Array<FloatArray>,
         deltaTime: Float
     ): ErrorState {
+        Log.i(
+            TAG, "Updating error state with step length: " +
+                    "currentStepPosition=${currentStepPosition.contentToString()}, " +
+                    "previousStepPosition=${previousStepPosition.contentToString()}, " +
+                    "fzMax=$fzMax, fzMin=$fzMin, deltaTime=$deltaTime"
+        )
         // --- Equation (10) Implementation ---
         // Compute step length using: L_step = K * sqrt[4](f^i_z(max) - f^i_z(min))
         val stepLength = strideConstant * (fzMax - fzMin).toDouble().pow(0.25).toFloat()
@@ -218,7 +244,11 @@ class AdaptiveKalmanFilter(
         )
 
         // Assume a small measurement noise covariance R.
-        val R = identityMatrix(3).map { it.map { 0.02f }.toFloatArray() }.toTypedArray()
+        val R = arrayOf(
+            floatArrayOf(0.02f, 0f,    0f),
+            floatArrayOf(0f,    0.02f, 0f),
+            floatArrayOf(0f,    0f,    0.02f)
+        )
 //
 //        // Update the error state using the generic Kalman update function.
 //        // (This function should implement: δx = (Hᵀ·R⁻¹·H)⁻¹ · Hᵀ·R⁻¹·dp, and then x_new = x + δx.)
@@ -229,6 +259,9 @@ class AdaptiveKalmanFilter(
             errorState, errorCovariance, H_stepLength, measurementResidual, R
         )
         errorCovariance = updatedCovariance
+        Log.i(
+            TAG, "Updated error state with step length: ${updatedErrorState.toVector().contentDeepToString()}"
+        )
         return updatedErrorState
     }
 
@@ -254,6 +287,10 @@ class AdaptiveKalmanFilter(
         observation: FloatArray,              // measurement residual (3-element vector)
         noiseCovariance: Array<FloatArray>      // R (3×3)
     ): Pair<ErrorState, Array<FloatArray>> {
+        Log.i(
+            TAG, "Updating error state with observation: ${observation.contentToString()}, " +
+                    "noiseCovariance=${noiseCovariance.contentDeepToString()}"
+        )
         // Convert error state x (9×1 vector) from the ErrorState model.
         val x = errorState.toVector().flatten2d()  // 9-element vector.
         val xCol = x.toColumnMatrix()  // 9×1 column matrix.
@@ -393,6 +430,9 @@ class AdaptiveKalmanFilter(
         return updatedErrorState
     }
 
+    companion object {
+        private const val TAG = "AdaptiveKalmanFilter"
+    }
 }
 
 /**

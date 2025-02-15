@@ -1,6 +1,7 @@
 package fm.pathfinder.utils
 
 import fm.pathfinder.utils.Extensions.norm
+import kotlin.math.absoluteValue
 
 data class MaxMinPair(
     var max: Double,
@@ -12,6 +13,7 @@ data class MaxMinPair(
 class Calibrator {
     private var stepsDetected = 0
     private var stepMaxMinAcceleration = ArrayList<MaxMinPair>()
+    private var minAcceleration = Pair(Double.MAX_VALUE, 0L)
     private val last5Averages = LimitedSizeQueue<Double>(5)
     private val last100Averages = LimitedSizeQueue<Double>(100)
     private val last5Acceleration = LimitedSizeQueue<Double>(5)
@@ -19,16 +21,25 @@ class Calibrator {
 
     fun addAcceleration(acceleration: FloatArray, timestamp: Long) {
         val currentNorm = acceleration.norm().toDouble()
-        if (last5Averages.size == 5) {
-            last5Acceleration.add(currentNorm)
+        last5Acceleration.add(currentNorm)
+        if (minAcceleration.first > currentNorm) {
+            minAcceleration = Pair(currentNorm, timestamp)
+        }
+        if (last5Acceleration.size == 5) {
             val average = last5Acceleration.average()
             last5Averages.add(average)
+            last100Averages.add(average)
             if (last5Averages.average() > last100Averages.average()) {
                 if (!stepDetected) {
                     stepDetected = true
                     stepsDetected++
                     val last5AccAvg = last5Acceleration.average()
-                    val newMaxMinPair = MaxMinPair(last5AccAvg, last5AccAvg, timestamp, timestamp)
+                    val newMaxMinPair = MaxMinPair(
+                        last5AccAvg,
+                        minAcceleration.first,
+                        timestamp,
+                        minAcceleration.second
+                    )
                     stepMaxMinAcceleration.add(newMaxMinPair)
                 } else {
                     stepMaxMinAcceleration[stepsDetected - 1].max = last5Acceleration.average()
@@ -45,7 +56,11 @@ class Calibrator {
         for (i in 0 until stepMaxMinAcceleration.size) {
             val accelerationDifference =
                 stepMaxMinAcceleration[i].max - stepMaxMinAcceleration[i].min
-            distanceCoveredSensor += accelerationDifference / 2 * (stepMaxMinAcceleration[i].timestampMax - stepMaxMinAcceleration[i].timestampMin)
+            val timestampMax = stepMaxMinAcceleration[i].timestampMax
+            val timestampMin = stepMaxMinAcceleration[i].timestampMin
+            val dtSeconds = (timestampMax - timestampMin).absoluteValue / 1_000_000_000.0
+            distanceCoveredSensor += (accelerationDifference / 2.0) * dtSeconds * dtSeconds
+
         }
         return distanceCoveredSensor / length
     }

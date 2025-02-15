@@ -68,7 +68,7 @@ class Sensors(
             initializeSensors()
         }
         if (!value) {
-            val stride = calibrator.stepLength(10).toFloat()
+            val stride = calibrator.stepLength(5).toFloat()
             Log.i(TAG, "Calibrator Stride length: $stride")
             sensorCollector = SensorCollector(stride)
         }

@@ -97,6 +97,7 @@ class SensorCollector(private val strideLength: Float) {
     private fun calculateErrorState() {
         // When both rotation and acceleration data are available, update the filter.
         if (rotationMatrix == null || acceleration == null) {
+            Log.i("SensorCollector", "Rotation or acceleration data missing.")
             return
         }
         // Compute Δt in seconds.
@@ -112,6 +113,7 @@ class SensorCollector(private val strideLength: Float) {
             deltaTime,
             rotationMatrix!!
         )
+        Log.i("SensorCollector", "Error state propagated, errorState = $errorState")
 
         // Apply Zero Velocity Update (ZUPT) when the acceleration indicates near-zero motion.
         if (ZUPTFilter.detectZeroVelocity(acceleration!!)) {
@@ -152,6 +154,8 @@ class SensorCollector(private val strideLength: Float) {
         val computedStepVelocity =
             if (stepTimeSec > 0f) stepLength / stepTimeSec else stepLength
 
+        Log.i("SensorCollector", "Step velocity: $computedStepVelocity m/s")
+
         // Update the step positions.
         // The expected displacement is obtained by rotating [0, L_step, 0]^T
         // from the device to the navigation frame.
@@ -164,6 +168,8 @@ class SensorCollector(private val strideLength: Float) {
         val observedStepMatrix =
             matrixMultiply(rotationMatrix!!, expectedStepMatrix)
         val displacement = FloatArray(3) { i -> observedStepMatrix[i][0] }
+
+        Log.i("SensorCollector", "Displacement: ${displacement[0]}, ${displacement[1]}, ${displacement[2]}")
 
         // Update positions: previous becomes current, and current is advanced.
         previousStepPosition = currentStepPosition.copyOf()
@@ -184,6 +190,11 @@ class SensorCollector(private val strideLength: Float) {
             rotationMatrix!!,
             deltaTime
         )
+
+        Log.i("SensorCollector", "Error state updated with step length, " +
+                "errorState = $errorState, " +
+                "deltaTime = $deltaTime, " +
+                "rotationMatrix = $rotationMatrix")
 
         // Also update the error state with the step velocity update.
         val v_l =
