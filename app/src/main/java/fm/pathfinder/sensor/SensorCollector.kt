@@ -6,6 +6,7 @@ import fm.pathfinder.model.ErrorState
 import fm.pathfinder.model.SensorBias
 import fm.pathfinder.utils.API_ENDPOINTS
 import fm.pathfinder.utils.ApiHelper
+import fm.pathfinder.utils.Extensions.norm
 import fm.pathfinder.utils.MathUtils.matrixMultiply
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +20,15 @@ class SensorCollector(private val strideLength: Float) {
     private var lastUpdateTime: Long = 0
 
     // Initialize the error state (all zeros initially) and sensor bias (calibrate as needed).
-    private var errorState = ErrorState()
-    private val sensorBias = SensorBias()
+    private var errorState = ErrorState(
+        positionError = floatArrayOf(0.01f, 0.01f, 0.01f),
+        velocityError = floatArrayOf(0.01f, 0.01f, 0.01f),
+        attitudeError = floatArrayOf(0.01f, 0.01f, 0.01f),
+    )
+    private val sensorBias = SensorBias(
+        accelerometerBias = floatArrayOf(0.1f, 0.1f, 0.1f),
+        gyroscopeBias = floatArrayOf(0.1f, 0.1f, 0.1f)
+    )
 
     // For step position and velocity updates.
     private var previousStepPosition = floatArrayOf(0f, 0f, 0f)  // in navigation frame (meters)
@@ -42,6 +50,8 @@ class SensorCollector(private val strideLength: Float) {
 
     private val apiHelper = ApiHelper()
     private var apiDataArray = mutableListOf<Map<String, Any>>() // Store data for API
+    private var rawAccelerationData = mutableListOf<Map<String, Any>>()
+    private var rawOrientationData = mutableListOf<Map<String, Any>>()
 
     /**
      * In a real application you would use the rotation vector sensor
@@ -57,6 +67,7 @@ class SensorCollector(private val strideLength: Float) {
             floatArrayOf(rotMat[3], rotMat[4], rotMat[5]),
             floatArrayOf(rotMat[6], rotMat[7], rotMat[8])
         )
+        saveRawOrientationData(values, timestamp)
     }
 
     /**
@@ -66,6 +77,7 @@ class SensorCollector(private val strideLength: Float) {
      * (in the navigation frame) and add it to a sliding window for step detection.
      */
     fun accelerationValues(values: FloatArray, timestamp: Long) {
+        Log.d("SensorCollector", "Acceleration: ${values[0]}, ${values[1]}, ${values[2]}")
         acceleration = values.clone()
 
         // Compute vertical acceleration (assume the third row of rotationMatrix gives the vertical direction).
@@ -86,8 +98,48 @@ class SensorCollector(private val strideLength: Float) {
             verticalAccWindow.removeAt(0)
         }
         acceleration = values.clone()
-        Log.d("SensorCollector", "Acceleration: ${values[0]}, ${values[1]}, ${values[2]}")
         calculateErrorState()
+        CoroutineScope(Dispatchers.Default).launch {
+            saveRawAccelerationData(values, timestamp)
+        }
+    }
+
+    private fun saveRawOrientationData(values: FloatArray, timestamp: Long) {
+        CoroutineScope(Dispatchers.Default).launch {
+            rawOrientationData.add(
+                mapOf(
+                    "timestamp" to timestamp,
+                    "x" to values[0],
+                    "y" to values[1],
+                    "z" to values[2],
+                    "w" to values[3]
+                )
+            )
+            if (rawOrientationData.size >= 10) {
+                val apiData = rawOrientationData.toList()
+                rawOrientationData.clear()
+                apiHelper.saveData(apiData, API_ENDPOINTS.ORIENTATION_VALUES)
+            }
+        }
+    }
+
+    private fun saveRawAccelerationData(values: FloatArray, timestamp: Long) {
+        CoroutineScope(Dispatchers.Default).launch {
+            rawAccelerationData.add(
+                mapOf(
+                    "timestamp" to timestamp,
+                    "x" to values[0],
+                    "y" to values[1],
+                    "z" to values[2],
+                    "normalization" to values.norm()
+                )
+            )
+            if (rawAccelerationData.size >= 10) {
+                val apiData = rawAccelerationData.toList()
+                rawAccelerationData.clear()
+                apiHelper.saveData(apiData, API_ENDPOINTS.ACCELERATION_VALUES)
+            }
+        }
     }
 
     /**
@@ -169,7 +221,10 @@ class SensorCollector(private val strideLength: Float) {
             matrixMultiply(rotationMatrix!!, expectedStepMatrix)
         val displacement = FloatArray(3) { i -> observedStepMatrix[i][0] }
 
-        Log.i("SensorCollector", "Displacement: ${displacement[0]}, ${displacement[1]}, ${displacement[2]}")
+        Log.i(
+            "SensorCollector",
+            "Displacement: ${displacement[0]}, ${displacement[1]}, ${displacement[2]}"
+        )
 
         // Update positions: previous becomes current, and current is advanced.
         previousStepPosition = currentStepPosition.copyOf()
@@ -191,10 +246,12 @@ class SensorCollector(private val strideLength: Float) {
             deltaTime
         )
 
-        Log.i("SensorCollector", "Error state updated with step length, " +
-                "errorState = $errorState, " +
-                "deltaTime = $deltaTime, " +
-                "rotationMatrix = $rotationMatrix")
+        Log.i(
+            "SensorCollector", "Error state updated with step length, " +
+                    "errorState = $errorState, " +
+                    "deltaTime = $deltaTime, " +
+                    "rotationMatrix = $rotationMatrix"
+        )
 
         // Also update the error state with the step velocity update.
         val v_l =
@@ -224,10 +281,11 @@ class SensorCollector(private val strideLength: Float) {
                 "cumulativeDistance" to "cumDistance"
             )
         )
-        if (apiDataArray.size >= 100) {
+        if (apiDataArray.size >= 10) {
+            val apiData = apiDataArray.toList()
+            apiDataArray.clear()
             CoroutineScope(Dispatchers.Default).launch {
-                apiHelper.saveData(apiDataArray, API_ENDPOINTS.STEP_EVENTS_VALUES)
-                apiDataArray.clear()
+                apiHelper.saveData(apiData, API_ENDPOINTS.STEP_EVENTS_VALUES)
             }
         }
     }

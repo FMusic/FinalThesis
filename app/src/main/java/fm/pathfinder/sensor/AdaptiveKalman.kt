@@ -85,7 +85,12 @@ class AdaptiveKalmanFilter(
             propagatedErrorStateVector[i][0] += Gbs[i][0] * deltaTime
         }
 
+        Log.i(TAG, "------PROPAGATE ERROR STATE EXIT DATA---------")
+        Log.i(TAG, "Error state: ${errorStateVector.contentDeepToString()}")
+        Log.i(TAG, "bias: ${bias.toVector6x1().contentDeepToString()}")
+        Log.i(TAG, "G*b_s: ${Gbs.contentDeepToString()}" + "deltaTime: $deltaTime")
         Log.i(TAG, "Propagated error state: ${propagatedErrorStateVector.contentDeepToString()}")
+        Log.i(TAG, "-----------------------------------------------")
 
         // 9) Convert back to ErrorState (9D)
         return ErrorState.fromVector9x1(propagatedErrorStateVector)
@@ -160,7 +165,8 @@ class AdaptiveKalmanFilter(
         )
         errorCovariance = updatedCovariance
         Log.i(
-            TAG, "Updated error state with ZUPT: ${updatedErrorState.toVector().contentDeepToString()}"
+            TAG,
+            "Updated error state with ZUPT: ${updatedErrorState.toVector().contentDeepToString()}"
         )
         return updatedErrorState
     }
@@ -245,9 +251,9 @@ class AdaptiveKalmanFilter(
 
         // Assume a small measurement noise covariance R.
         val R = arrayOf(
-            floatArrayOf(0.02f, 0f,    0f),
-            floatArrayOf(0f,    0.02f, 0f),
-            floatArrayOf(0f,    0f,    0.02f)
+            floatArrayOf(0.02f, 0f, 0f),
+            floatArrayOf(0f, 0.02f, 0f),
+            floatArrayOf(0f, 0f, 0.02f)
         )
 //
 //        // Update the error state using the generic Kalman update function.
@@ -260,7 +266,10 @@ class AdaptiveKalmanFilter(
         )
         errorCovariance = updatedCovariance
         Log.i(
-            TAG, "Updated error state with step length: ${updatedErrorState.toVector().contentDeepToString()}"
+            TAG,
+            "Updated error state with step length: ${
+                updatedErrorState.toVector().contentDeepToString()
+            }"
         )
         return updatedErrorState
     }

@@ -28,20 +28,9 @@ enum class API_ENDPOINTS {
     }
 }
 
-data class ApiData(val data: MutableList<Map<String, Any>>)
-
 class ApiHelper {
     private val client = OkHttpClient()
     private val apiUrl = "http://192.168.0.14:3000" // Replace with your PostgREST API base URL
-
-    suspend fun saveData(apiData: ApiData, endpoints: API_ENDPOINTS) {
-        val dt = apiData.data.toList()
-        withContext(Dispatchers.IO) { // Run on a background thread
-            val jsonArray = JSONArray()
-            dt.stream().map { JSONObject(it) }.forEach { jsonArray.put(it) }
-            postToApi(jsonArray, endpoints)
-        }
-    }
 
     suspend fun saveData(apiData: List<Map<String, Any>>, endpoints: API_ENDPOINTS) {
         withContext(Dispatchers.IO) { // Run on a background thread
