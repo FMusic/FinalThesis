@@ -25,6 +25,9 @@ enum class API_ENDPOINTS {
     },
     STEP_EVENTS_VALUES{
         override fun toString() = "/stepevents"
+    },
+    CALIBRATOR_VALUES {
+        override fun toString() = "/calibrator"
     }
 }
 

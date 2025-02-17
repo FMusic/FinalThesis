@@ -43,7 +43,7 @@ class Sensors(
 
         when (event.sensor.type) {
             Sensor.TYPE_ROTATION_VECTOR -> {
-                if(!calibrationMode){
+                if (!calibrationMode) {
                     sensorCollector.rotationValues(event.values, processTimestamp(event.timestamp))
                 }
             }
@@ -51,8 +51,11 @@ class Sensors(
             Sensor.TYPE_ACCELEROMETER -> {
                 if (calibrationMode) {
                     calibrator.addAcceleration(event.values, processTimestamp(event.timestamp))
-                } else  {
-                    sensorCollector.accelerationValues(event.values, processTimestamp(event.timestamp))
+                } else {
+                    sensorCollector.accelerationValues(
+                        event.values,
+                        processTimestamp(event.timestamp)
+                    )
                 }
             }
         }
@@ -82,6 +85,10 @@ class Sensors(
         if (!scanning) {
             val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             sensorManager.unregisterListener(this)
+            sensorCollector.saveRawOrientationData()
+            sensorCollector.saveRawAccelerationData()
+            sensorCollector.saveFilteredStepData()
+            sensorCollector.saveFilteredAccelerationData()
         }
     }
 

@@ -1,6 +1,9 @@
 package fm.pathfinder.utils
 
 import fm.pathfinder.utils.Extensions.norm
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 data class MaxMinPair(
     var max: Double,
@@ -19,9 +22,9 @@ class Calibrator {
     private val stepMaxMinAcceleration = ArrayList<MaxMinPair>()
 
     // We still use these limited-size queues:
-    private val last5Acceleration  = LimitedSizeQueue<Double>(5)
-    private val last5Averages      = LimitedSizeQueue<Double>(5)
-    private val last100Averages    = LimitedSizeQueue<Double>(100)
+    private val last5Acceleration = LimitedSizeQueue<Double>(5)
+    private val last5Averages = LimitedSizeQueue<Double>(5)
+    private val last100Averages = LimitedSizeQueue<Double>(100)
 
     // A small state machine for step detection
     private enum class StepState { IDLE, RISING, PEAK }
@@ -29,15 +32,16 @@ class Calibrator {
     private var stepState = StepState.IDLE
 
     // We'll keep track of a local peak (max) and local valley (min) for each step cycle
-    private var localPeak       = 0.0
-    private var localPeakTime   = 0L
-    private var localValley     = 9.81   // approximate baseline or use long-term average
+    private var localPeak = 0.0
+    private var localPeakTime = 0L
+    private var localValley = 9.81   // approximate baseline or use long-term average
     private var localValleyTime = 0L
 
     // Simple thresholds (tune these!)
-    private val THRESH_RISE   = 0.5   // how much above baseline is "rising"?
-    private val THRESH_FALL   = 0.5   // how much below the peak is "falling"?
+    private val THRESH_RISE = 0.5   // how much above baseline is "rising"?
+    private val THRESH_FALL = 0.5   // how much below the peak is "falling"?
     private val MIN_PEAK_DIFF = 1.0   // minimal (peak - valley) to accept a step
+    private val apiHelper = ApiHelper()
 
     /**
      * Called for every new accelerometer reading.
@@ -72,10 +76,10 @@ class Calibrator {
                 // If short-term average is above baseline + THRESH_RISE, we start RISING
                 if (avgAcc > baseline + THRESH_RISE) {
                     stepState = StepState.RISING
-                    localPeak       = avgAcc
-                    localPeakTime   = timestamp
+                    localPeak = avgAcc
+                    localPeakTime = timestamp
                     // Initialize valley near the baseline
-                    localValley     = baseline
+                    localValley = baseline
                     localValleyTime = timestamp
                 }
             }
@@ -83,14 +87,14 @@ class Calibrator {
             StepState.RISING -> {
                 // If it's still going up, update local peak
                 if (avgAcc > localPeak) {
-                    localPeak     = avgAcc
+                    localPeak = avgAcc
                     localPeakTime = timestamp
                 }
                 // If it falls by THRESH_FALL from the local peak, we confirm a peak
                 else if ((localPeak - avgAcc) > THRESH_FALL) {
                     stepState = StepState.PEAK
                     // Start the valley from the current measurement
-                    localValley     = avgAcc
+                    localValley = avgAcc
                     localValleyTime = timestamp
                 }
             }
@@ -99,7 +103,7 @@ class Calibrator {
                 // Now we watch for the local valley
                 // If we see an even lower acceleration, update localValley
                 if (avgAcc < localValley) {
-                    localValley     = avgAcc
+                    localValley = avgAcc
                     localValleyTime = timestamp
                 }
                 // If we start rising again above localValley + THRESH_RISE,
@@ -111,8 +115,8 @@ class Calibrator {
                         // Record a new MaxMinPair
                         stepMaxMinAcceleration.add(
                             MaxMinPair(
-                                max         = localPeak,
-                                min         = localValley,
+                                max = localPeak,
+                                min = localValley,
                                 timestampMax = localPeakTime,
                                 timestampMin = localValleyTime
                             )
@@ -132,17 +136,30 @@ class Calibrator {
      * or do something else. Tweak as needed.
      */
     fun stepLength(length: Int): Double {
+        saveAccelerationData()
         var distanceCoveredSensor = 0.0
         for (pair in stepMaxMinAcceleration) {
-            val accelerationDifference = pair.max - pair.min
+            val accelerationDifference = (pair.max - pair.min)
+            val distanceCovered =
+                (accelerationDifference / 2) * (pair.timestampMax - pair.timestampMin)
             // You might also use (pair.timestampMax, pair.timestampMin) for time-based logic
-            distanceCoveredSensor += accelerationDifference
+            distanceCoveredSensor += distanceCovered
         }
-        // If we want to interpret that as we walked 'length' real meters:
-        // ratio = (actual distance) / (sensor-measured total)
-        // Then we can return the ratio or the average step length, etc.
-        // For simplicity, here's dividing the total difference by 'length':
         return if (stepMaxMinAcceleration.isEmpty()) 0.0
-        else (distanceCoveredSensor / length)
+        else (length / distanceCoveredSensor)
+    }
+
+    private fun saveAccelerationData() {
+        CoroutineScope(Dispatchers.Default).launch {
+            val apiData = stepMaxMinAcceleration.map {
+                mapOf(
+                    "maxacc" to it.max,
+                    "minacc" to it.min,
+                    "timestampmax" to it.timestampMax,
+                    "timestampmin" to it.timestampMin
+                )
+            }.toList()
+            apiHelper.saveData(apiData, API_ENDPOINTS.CALIBRATOR_VALUES)
+        }
     }
 }

@@ -52,6 +52,7 @@ class SensorCollector(private val strideLength: Float) {
     private var apiDataArray = mutableListOf<Map<String, Any>>() // Store data for API
     private var rawAccelerationData = mutableListOf<Map<String, Any>>()
     private var rawOrientationData = mutableListOf<Map<String, Any>>()
+    private var filteredAccelerationData = mutableListOf<Map<String, Any>>()
 
     /**
      * In a real application you would use the rotation vector sensor
@@ -67,7 +68,18 @@ class SensorCollector(private val strideLength: Float) {
             floatArrayOf(rotMat[3], rotMat[4], rotMat[5]),
             floatArrayOf(rotMat[6], rotMat[7], rotMat[8])
         )
-        saveRawOrientationData(values, timestamp)
+        rawOrientationData.add(
+            mapOf(
+                "timestamp" to timestamp,
+                "x" to values[0],
+                "y" to values[1],
+                "z" to values[2],
+                "w" to values[3]
+            )
+        )
+        if (rawOrientationData.size >= 10) {
+            saveRawOrientationData()
+        }
     }
 
     /**
@@ -99,47 +111,19 @@ class SensorCollector(private val strideLength: Float) {
         }
         acceleration = values.clone()
         calculateErrorState()
-        CoroutineScope(Dispatchers.Default).launch {
-            saveRawAccelerationData(values, timestamp)
-        }
-    }
-
-    private fun saveRawOrientationData(values: FloatArray, timestamp: Long) {
-        CoroutineScope(Dispatchers.Default).launch {
-            rawOrientationData.add(
-                mapOf(
-                    "timestamp" to timestamp,
-                    "x" to values[0],
-                    "y" to values[1],
-                    "z" to values[2],
-                    "w" to values[3]
-                )
+        rawAccelerationData.add(
+            mapOf(
+                "timestamp" to timestamp,
+                "x" to values[0],
+                "y" to values[1],
+                "z" to values[2],
+                "normalization" to values.norm()
             )
-            if (rawOrientationData.size >= 10) {
-                val apiData = rawOrientationData.toList()
-                rawOrientationData.clear()
-                apiHelper.saveData(apiData, API_ENDPOINTS.ORIENTATION_VALUES)
-            }
+        )
+        if (rawAccelerationData.size >= 10) {
+            saveRawAccelerationData()
         }
-    }
 
-    private fun saveRawAccelerationData(values: FloatArray, timestamp: Long) {
-        CoroutineScope(Dispatchers.Default).launch {
-            rawAccelerationData.add(
-                mapOf(
-                    "timestamp" to timestamp,
-                    "x" to values[0],
-                    "y" to values[1],
-                    "z" to values[2],
-                    "normalization" to values.norm()
-                )
-            )
-            if (rawAccelerationData.size >= 10) {
-                val apiData = rawAccelerationData.toList()
-                rawAccelerationData.clear()
-                apiHelper.saveData(apiData, API_ENDPOINTS.ACCELERATION_VALUES)
-            }
-        }
     }
 
     /**
@@ -149,7 +133,7 @@ class SensorCollector(private val strideLength: Float) {
     private fun calculateErrorState() {
         // When both rotation and acceleration data are available, update the filter.
         if (rotationMatrix == null || acceleration == null) {
-            Log.i("SensorCollector", "Rotation or acceleration data missing.")
+            Log.e("SensorCollector", "Rotation or acceleration data missing.")
             return
         }
         // Compute Δt in seconds.
@@ -166,6 +150,22 @@ class SensorCollector(private val strideLength: Float) {
             rotationMatrix!!
         )
         Log.i("SensorCollector", "Error state propagated, errorState = $errorState")
+
+        val filteredAcceleration =
+            FloatArray(3) { i -> acceleration!![i] - sensorBias.accelerometerBias[i] }
+
+        filteredAccelerationData.add(
+            mapOf(
+                "timestamp" to System.currentTimeMillis(),
+                "x" to filteredAcceleration[0],
+                "y" to filteredAcceleration[1],
+                "z" to filteredAcceleration[2],
+                "normalization" to filteredAcceleration.norm()
+            )
+        )
+        if (filteredAccelerationData.size >= 10) {
+            saveFilteredAccelerationData()
+        }
 
         // Apply Zero Velocity Update (ZUPT) when the acceleration indicates near-zero motion.
         if (ZUPTFilter.detectZeroVelocity(acceleration!!)) {
@@ -193,6 +193,10 @@ class SensorCollector(private val strideLength: Float) {
         if (diff < verticalAccDiffThreshold) return
 
         val currentStepTime = maxPair.first
+        if (lastStepTime != 0L && (currentStepTime - lastStepTime) < STEP_TIME_THRESHOLD_MS) {
+            Log.i(TAG, "Step ignored due to short time interval.")
+            return // Ignore this step
+        }
         val stepTimeSec = if (lastStepTime == 0L) 0.5f
         else (currentStepTime - lastStepTime) / 1000f
         lastStepTime = currentStepTime
@@ -200,13 +204,13 @@ class SensorCollector(private val strideLength: Float) {
         // Compute step length using Equation (10):
         // L_step = strideConstant * (fzMax - fzMin)^(1/4)
         val stepLength = strideLength * diff.toDouble().pow(0.25).toFloat()
-        Log.i("SensorCollector", "Step detected: length = $stepLength m, time = $stepTimeSec s")
+        Log.i(TAG, "Step detected: length = $stepLength m, time = $stepTimeSec s")
 
         // Compute step velocity as step length divided by step time.
         val computedStepVelocity =
             if (stepTimeSec > 0f) stepLength / stepTimeSec else stepLength
 
-        Log.i("SensorCollector", "Step velocity: $computedStepVelocity m/s")
+        Log.i(TAG, "Step velocity: $computedStepVelocity m/s")
 
         // Update the step positions.
         // The expected displacement is obtained by rotating [0, L_step, 0]^T
@@ -222,7 +226,7 @@ class SensorCollector(private val strideLength: Float) {
         val displacement = FloatArray(3) { i -> observedStepMatrix[i][0] }
 
         Log.i(
-            "SensorCollector",
+            TAG,
             "Displacement: ${displacement[0]}, ${displacement[1]}, ${displacement[2]}"
         )
 
@@ -247,10 +251,8 @@ class SensorCollector(private val strideLength: Float) {
         )
 
         Log.i(
-            "SensorCollector", "Error state updated with step length, " +
-                    "errorState = $errorState, " +
-                    "deltaTime = $deltaTime, " +
-                    "rotationMatrix = $rotationMatrix"
+            TAG,
+            "Error state updated with step length, errorState = $errorState, deltaTime = $deltaTime, rotationMatrix = $rotationMatrix"
         )
 
         // Also update the error state with the step velocity update.
@@ -272,22 +274,53 @@ class SensorCollector(private val strideLength: Float) {
         )
         apiDataArray.add(
             mapOf(
-                "stepTimestamp" to currentStepTime,
-                "stepLength" to stepLength,
+                "steplength" to stepLength,
                 "velocity" to computedStepVelocity,
-                "posX" to currentStepPosition[0],
-                "posY" to currentStepPosition[1],
-                "posZ" to currentStepPosition[2],
-                "cumulativeDistance" to "cumDistance"
+                "posx" to currentStepPosition[0],
+                "posy" to currentStepPosition[1],
+                "posz" to currentStepPosition[2],
+                "timestamp" to currentStepTime
             )
         )
         if (apiDataArray.size >= 10) {
-            val apiData = apiDataArray.toList()
-            apiDataArray.clear()
-            CoroutineScope(Dispatchers.Default).launch {
-                apiHelper.saveData(apiData, API_ENDPOINTS.STEP_EVENTS_VALUES)
-            }
+            saveFilteredStepData()
         }
     }
 
+    fun saveRawOrientationData() {
+        CoroutineScope(Dispatchers.Default).launch {
+            val apiData = rawOrientationData.toList()
+            rawOrientationData.clear()
+            apiHelper.saveData(apiData, API_ENDPOINTS.ORIENTATION_VALUES)
+        }
+    }
+
+    fun saveRawAccelerationData() {
+        CoroutineScope(Dispatchers.Default).launch {
+            val apiData = rawAccelerationData.toList()
+            rawAccelerationData.clear()
+            apiHelper.saveData(apiData, API_ENDPOINTS.ACCELERATION_VALUES)
+        }
+    }
+
+    fun saveFilteredStepData() {
+        val apiData = apiDataArray.toList()
+        apiDataArray.clear()
+        CoroutineScope(Dispatchers.Default).launch {
+            apiHelper.saveData(apiData, API_ENDPOINTS.STEP_EVENTS_VALUES)
+        }
+    }
+
+    fun saveFilteredAccelerationData() {
+        val apiData = filteredAccelerationData.toList()
+        filteredAccelerationData.clear()
+        CoroutineScope(Dispatchers.Default).launch {
+            apiHelper.saveData(apiData, API_ENDPOINTS.ACCELERATION_FILTERED)
+        }
+    }
+
+    companion object {
+        const val STEP_TIME_THRESHOLD_MS = 350L
+        const val TAG = "SensorCollector"
+    }
 }
