@@ -43,7 +43,7 @@ class Sensors(
 
         when (event.sensor.type) {
             Sensor.TYPE_ROTATION_VECTOR -> {
-                if(!calibrationMode){
+                if (!calibrationMode) {
                     sensorCollector.rotationValues(event.values, processTimestamp(event.timestamp))
                 }
             }
@@ -51,8 +51,11 @@ class Sensors(
             Sensor.TYPE_ACCELEROMETER -> {
                 if (calibrationMode) {
                     calibrator.addAcceleration(event.values, processTimestamp(event.timestamp))
-                } else  {
-                    sensorCollector.accelerationValues(event.values, processTimestamp(event.timestamp))
+                } else {
+                    sensorCollector.accelerationValues(
+                        event.values,
+                        processTimestamp(event.timestamp)
+                    )
                 }
             }
         }
@@ -69,7 +72,7 @@ class Sensors(
         }
         if (!value) {
             val stride = calibrator.stepLength(5).toFloat()
-            Log.i(TAG, "Calibrator Stride length: $stride")
+            Log.i(TAG, "Stride length: $stride")
             sensorCollector = SensorCollector(stride)
         }
     }
@@ -82,6 +85,10 @@ class Sensors(
         if (!scanning) {
             val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
             sensorManager.unregisterListener(this)
+            sensorCollector.saveRawOrientationData()
+            sensorCollector.saveRawAccelerationData()
+            sensorCollector.saveFilteredStepData()
+            sensorCollector.saveFilteredAccelerationData()
         }
     }
 
@@ -96,7 +103,7 @@ class Sensors(
     }
 
     companion object {
-        const val TAG = "SensorCollector"
+        const val TAG = "Sensors"
         const val ORIENTATION_MATRIX_SIZE = 3
         const val MINIMUM_ACCELERATION_DELTA = 0.5f
         const val SAMPLING_PERIOD = SensorManager.SENSOR_DELAY_UI

@@ -17,14 +17,14 @@ enum class API_ENDPOINTS {
     ACCELERATION_FILTERED{
         override fun toString() = "/accelerationfiltered"
     },
-    ACCELERATION_FILTERED_3D{
-        override fun toString() = "/accelerationfiltered3d"
-    },
     ORIENTATION_VALUES{
         override fun toString() = "/orientationvalues"
     },
     STEP_EVENTS_VALUES{
         override fun toString() = "/stepevents"
+    },
+    CALIBRATOR_VALUES {
+        override fun toString() = "/calibrator"
     }
 }
 

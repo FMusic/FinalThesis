@@ -69,7 +69,7 @@ class AdaptiveKalmanFilter(
         val errorStateVector = errorState.toVector9x1()
 
         // Propagate the error state: δs = Φ * δs
-        val propagatedErrorStateVector =
+        val errStateVector =
             matrixMultiply(phi, errorStateVector)
         // 5) Build the 9×6 matrix G
         val G = buildBiasInfluenceMatrix(attitudeMatrix)
@@ -80,20 +80,24 @@ class AdaptiveKalmanFilter(
         // 7) Compute G * b_s => 9×1
         val Gbs = matrixMultiply(G, bVec)
 
+        val errorStateToPropagate = Array(9) { FloatArray(1) { 0f } }
+
         // 8) Multiply by Δt and add to phiXs
         for (i in 0..8) {
-            propagatedErrorStateVector[i][0] += Gbs[i][0] * deltaTime
+            errorStateToPropagate[i][0] = errStateVector[i][0] + Gbs[i][0] * deltaTime
         }
 
         Log.i(TAG, "------PROPAGATE ERROR STATE EXIT DATA---------")
+        Log.i(TAG, "Phi: ${phi.contentDeepToString()}")
         Log.i(TAG, "Error state: ${errorStateVector.contentDeepToString()}")
+        Log.i(TAG, "First Matrix: ${errStateVector.contentDeepToString()}")
         Log.i(TAG, "bias: ${bias.toVector6x1().contentDeepToString()}")
         Log.i(TAG, "G*b_s: ${Gbs.contentDeepToString()}" + "deltaTime: $deltaTime")
-        Log.i(TAG, "Propagated error state: ${propagatedErrorStateVector.contentDeepToString()}")
+        Log.i(TAG, "Propagated error state: ${errorStateToPropagate.contentDeepToString()}")
         Log.i(TAG, "-----------------------------------------------")
 
         // 9) Convert back to ErrorState (9D)
-        return ErrorState.fromVector9x1(propagatedErrorStateVector)
+        return ErrorState.fromVector9x1(errStateVector)
     }
 
     private fun buildBiasInfluenceMatrix(attitudeMatrix: Array<FloatArray>): Array<FloatArray> {
@@ -211,7 +215,7 @@ class AdaptiveKalmanFilter(
         )
         // --- Equation (10) Implementation ---
         // Compute step length using: L_step = K * sqrt[4](f^i_z(max) - f^i_z(min))
-        val stepLength = strideConstant * (fzMax - fzMin).toDouble().pow(0.25).toFloat()
+        val stepLength = strideConstant * (fzMax - fzMin).toDouble().pow(1 / 4).toFloat()
 
         // Form the expected step vector in the device coordinate system: [0, L_step, 0].
         // (This corresponds to the assumption that the pedestrian walks in the facing direction.)
