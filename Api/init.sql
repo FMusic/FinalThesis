@@ -39,7 +39,10 @@ CREATE TABLE IF NOT EXISTS calibrator (
     maxacc DOUBLE PRECISION,
     minacc DOUBLE PRECISION,
     timestampmax BIGINT,
-    timestampmin BIGINT
+    timestampmin BIGINT,
+    accdiff DOUBLE PRECISION,
+    duration BIGINT,
+    distance DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS accelerationFiltered (
@@ -51,12 +54,18 @@ CREATE TABLE IF NOT EXISTS accelerationFiltered (
     timestamp BIGINT
 );
 
+CREATE TABLE IF NOT EXISTS userSteps(
+    id SERIAL PRIMARY KEY,
+    timestamp BIGINT
+);
+
 -- Grant SELECT, INSERT, UPDATE, and DELETE permissions on tables
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE accelerationFiltered TO public;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE accelerationValues TO public;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE orientationValues TO public;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE stepEvents TO public;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE calibrator TO public;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE userSteps TO public;
 
 -- Grant USAGE on the schema
 GRANT USAGE ON SCHEMA scanner TO public;

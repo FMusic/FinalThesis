@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.SystemClock
 import android.util.Log
 import fm.pathfinder.model.Building
 import fm.pathfinder.utils.Calibrator
@@ -99,7 +100,14 @@ class Sensors(
         if (startTimestamp == 0L) {
             startTimestamp = timestamp
         }
-        return (timestamp - startTimestamp) / 1_000_000  // convert to milliseconds
+        return ((timestamp - startTimestamp) * 1.0f / 1000000.0f).toLong()
+    }
+
+    fun newStep() {
+        if (scanMode) {
+            val timestamp = ((SystemClock.elapsedRealtimeNanos() - startTimestamp) / 1000000)
+            sensorCollector.newStep(timestamp)
+        }
     }
 
     companion object {

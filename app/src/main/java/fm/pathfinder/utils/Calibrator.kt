@@ -5,7 +5,7 @@ import fm.pathfinder.utils.Extensions.norm
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlin.math.abs
+import kotlin.math.pow
 
 data class MaxMinPair(
     var max: Double,
@@ -143,7 +143,8 @@ class Calibrator {
         for (pair in stepMaxMinAcceleration) {
             val accelerationDifference = (pair.max - pair.min)
             val distanceCovered =
-                (accelerationDifference / 2) * abs(pair.timestampMax - pair.timestampMin)
+                (accelerationDifference / 2) * (pair.timestampMax - pair.timestampMin).toDouble()
+                    .pow(2.0)
             // You might also use (pair.timestampMax, pair.timestampMin) for time-based logic
             distanceCoveredSensor += distanceCovered
             Log.i(
@@ -166,7 +167,10 @@ class Calibrator {
                     "maxacc" to it.max,
                     "minacc" to it.min,
                     "timestampmax" to it.timestampMax,
-                    "timestampmin" to it.timestampMin
+                    "timestampmin" to it.timestampMin,
+                    "accdiff" to (it.max - it.min),
+                    "duration" to (it.timestampMax - it.timestampMin),
+                    "distance" to ((it.max - it.min) / 2) * (it.timestampMax - it.timestampMin).toDouble().pow(2.0)
                 )
             }.toList()
             apiHelper.saveData(apiData, API_ENDPOINTS.CALIBRATOR_VALUES)

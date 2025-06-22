@@ -3,12 +3,10 @@ package fm.pathfinder.ui
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
-import fm.pathfinder.model.Acceleration
+import com.google.android.gms.maps.model.LatLng
 import fm.pathfinder.model.Building
 import fm.pathfinder.model.Vector
+import fm.pathfinder.sensor.GpsSensor
 import fm.pathfinder.sensor.Sensors
 import fm.pathfinder.utils.LimitedSizeQueue
 
@@ -29,10 +27,15 @@ class MapPresenter(
 
     init {
         building.subscribe(this)
+        GpsSensor(context, building, this::onNewGpsPoint)
     }
 
     fun startCalibration() {
         sensors.setCalibration(true)
+    }
+
+    fun onNewGpsPoint(location: LatLng){
+        mapFragment.changeLocation(location)
     }
 
     fun startScan() {
@@ -63,29 +66,29 @@ class MapPresenter(
         mapFragment.logIt("New point: $point")
     }
 
-    fun setLineChart() {
-        val dataSet = if (chartEntries.isEmpty()) {
-            // dummy data
-            (0..MIN_CHART_SIZE).map { Entry(it.toFloat(), it.toFloat()) }
-        } else {
-            chartEntries.mapIndexed { index, acceleration ->
-                Entry(
-                    index.toFloat(),
-                    acceleration.toFloat()
-                )
-            }
-        }
-        val lineDataSet = LineDataSet(dataSet, "Label for Data") // Set the label here
-        val lineData = LineData(lineDataSet)
-        mapFragment.lineChart.data = lineData
-        mapFragment.lineChart.notifyDataSetChanged()
-        mapFragment.lineChart.invalidate()
-    }
+//    fun setLineChart() {
+//        val dataSet = if (chartEntries.isEmpty()) {
+//            // dummy data
+//            (0..MIN_CHART_SIZE).map { Entry(it.toFloat(), it.toFloat()) }
+//        } else {
+//            chartEntries.mapIndexed { index, acceleration ->
+//                Entry(
+//                    index.toFloat(),
+//                    acceleration.toFloat()
+//                )
+//            }
+//        }
+//        val lineDataSet = LineDataSet(dataSet, "Label for Data") // Set the label here
+//        val lineData = LineData(lineDataSet)
+//        mapFragment.lineChart.data = lineData
+//        mapFragment.lineChart.notifyDataSetChanged()
+//        mapFragment.lineChart.invalidate()
+//    }
 
-    fun acceleration(acc: Acceleration) {
-        chartEntries.add(acc.norm().toInt())
-        setLineChart()
-    }
+//    fun acceleration(acc: Acceleration) {
+//        chartEntries.add(acc.norm().toInt())
+//        setLineChart()
+//    }
 
     fun newStep(distance: Float) {
         Log.i(TAG, "New step: $distance")
@@ -93,7 +96,11 @@ class MapPresenter(
     }
 
     fun orientation(orientation: Float) {
-        mapFragment.tvOrientation.text = orientation.toString()
+//        mapFragment.tvOrientation.text = orientation.toString()
+    }
+
+    fun newStepClick() {
+        sensors.newStep()
     }
 
 }

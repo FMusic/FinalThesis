@@ -14,17 +14,20 @@ enum class API_ENDPOINTS {
     ACCELERATION_VALUES {
         override fun toString() = "/accelerationvalues"
     },
-    ACCELERATION_FILTERED{
+    ACCELERATION_FILTERED {
         override fun toString() = "/accelerationfiltered"
     },
-    ORIENTATION_VALUES{
+    ORIENTATION_VALUES {
         override fun toString() = "/orientationvalues"
     },
-    STEP_EVENTS_VALUES{
+    STEP_EVENTS_VALUES {
         override fun toString() = "/stepevents"
     },
     CALIBRATOR_VALUES {
         override fun toString() = "/calibrator"
+    },
+    STEP_CLICKED {
+        override fun toString() = "/usersteps"
     }
 }
 
@@ -40,7 +43,7 @@ class ApiHelper {
         }
     }
 
-    private fun postToApi(jsonData: JSONObject, endpoints: API_ENDPOINTS){
+    private fun postToApi(jsonData: JSONObject, endpoints: API_ENDPOINTS) {
         val requestBody = jsonData.toString()
             .toRequestBody("application/json".toMediaTypeOrNull())
 

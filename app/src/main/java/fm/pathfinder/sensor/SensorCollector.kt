@@ -53,6 +53,7 @@ class SensorCollector(private val strideLength: Float) {
     private var rawAccelerationData = mutableListOf<Map<String, Any>>()
     private var rawOrientationData = mutableListOf<Map<String, Any>>()
     private var filteredAccelerationData = mutableListOf<Map<String, Any>>()
+    private var clickedStepData = mutableListOf<Map<String, Any>>()
 
     /**
      * In a real application you would use the rotation vector sensor
@@ -127,6 +128,23 @@ class SensorCollector(private val strideLength: Float) {
     }
 
     /**
+     * This function is called when a new step button is clicked. Data will allow us to compare
+     * step timestamp with algorithm calculated step timestamp.
+     */
+    fun newStep(timestamp: Long) {
+        val apiData = mapOf(
+            "timestamp" to timestamp
+        )
+        clickedStepData.add(apiData)
+        if(clickedStepData.size >= 10) {
+            CoroutineScope(Dispatchers.Default).launch {
+                apiHelper.saveData(clickedStepData, API_ENDPOINTS.STEP_CLICKED)
+                clickedStepData.clear()
+            }
+        }
+    }
+
+    /**
      * This function updates the error state using the Kalman filter.
      * It performs state propagation, ZUPT, and then checks for step detection.
      */
@@ -137,9 +155,8 @@ class SensorCollector(private val strideLength: Float) {
             return
         }
         // Compute Δt in seconds.
-        val currentTime = System.nanoTime()
-        val deltaTime = (currentTime - lastUpdateTime) * 1e-9f
-        lastUpdateTime = currentTime
+        val deltaTime = (timestamp - lastUpdateTime).toFloat()
+        lastUpdateTime = timestamp
 
         // Propagate the error state using the current acceleration measurement.
         errorState = kalmanFilter.propagateErrorState(
@@ -318,6 +335,7 @@ class SensorCollector(private val strideLength: Float) {
             apiHelper.saveData(apiData, API_ENDPOINTS.ACCELERATION_FILTERED)
         }
     }
+
 
     companion object {
         const val STEP_TIME_THRESHOLD_MS = 350L

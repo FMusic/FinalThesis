@@ -5,6 +5,7 @@ import android.app.Dialog;
 import android.os.Bundle;
 import android.widget.EditText;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.DialogFragment;
 
 public class InputDialogFragment extends DialogFragment {
@@ -21,11 +22,13 @@ public class InputDialogFragment extends DialogFragment {
     }
 
     // Set the listener for input completion
-    public void setOnInputCompleteListener(OnInputCompleteListener listener) {
+    public InputDialogFragment setOnInputCompleteListener(OnInputCompleteListener listener) {
         this.listener = listener;
+        return this;
     }
 
     @Override
+    @NonNull
     public Dialog onCreateDialog(Bundle savedInstanceState) {
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle(title);
